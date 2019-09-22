@@ -21,8 +21,11 @@ struct ImageIO
         std::cout << "loading from: " << path << std::endl;
 
         cv::Mat image = cv::imread(path);
+        // To gray
         cv::cvtColor(image, image, CV_BGR2GRAY);
-
+        // To float. Not nessesary
+        image.convertTo(image, CV_32F, 1/255.0); 
+        
         if(false)
         {
             imshow( "write process", image );
@@ -54,7 +57,7 @@ int main(int argc, char *argv[])
     {
         const auto image = imageio.read_next();
         lk_tracker.track(image);
-        lk_tracker.show_features("features", 100);
+        lk_tracker.show_features("features", -1);
     }
 
     return 0;
