@@ -11,20 +11,23 @@ public:
 
     void track(const cv::Mat &cur_im_in)
     {
-        cv::Mat cur_im;
-        cv::GaussianBlur( cur_im_in, cur_im, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
+        cv::Mat cur_im = cur_im_in.clone();
+        // Same as apply spline in the optimization problem.
+        // TODO: prove it
+        constexpr bool APPLY_SPLINE = false;
+        if(APPLY_SPLINE)
+        {
+            cv::GaussianBlur( cur_im_in, cur_im, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
+        }
+
+        if(cur_features_locations_.size() < 50)
+        {
+            std::cout << "clear and detect features..." << std::endl;
+            clear_and_detect_features(cur_im_in);
+        }
 
         if(frame_count_ == 0)
         {
-            // constexpr int MAX_FEATURES = 1;
-            // constexpr double QUALITY_LEVEL = 0.1;
-            // constexpr double MIN_DISTANCE = 20;
-
-            // cv::goodFeaturesToTrack(cur_im, cur_features_locations_, MAX_FEATURES, QUALITY_LEVEL, MIN_DISTANCE);
-            // cur_features_velocities_ = std::vector<cv::Point2f>(cur_features_locations_.size(), cv::Point2f(0,0.));
-
-            cur_features_locations_ = {{160, 130.}};
-            cur_features_velocities_ = {{0, 0.}};
         }
         else
         {
@@ -35,14 +38,23 @@ public:
 
             for(size_t i = 0; i < cur_features_locations_.size(); i++)
             {
-                cv::Point2f new_velocity = lucas_kanada_least_sqaures(cur_features_velocities_.at(i), 
-                                                                     cur_features_locations_.at(i), 
-                                                                     cur_im);
+                if(feature_within_image(cur_features_locations_.at(i)) // cur image inbound
+                    // last image inbound
+                    and feature_within_image(cur_features_locations_.at(i) + cur_features_velocities_.at(i)))
+                {
+                    cv::Point2f new_velocity = lucas_kanada_least_sqaures(cur_features_velocities_.at(i), 
+                                                                        cur_features_locations_.at(i), 
+                                                                        cur_im);
 
-                new_velocities.push_back(new_velocity);
-                new_features_locations.emplace_back(cur_features_locations_[i].x - new_velocity.x, 
-                                          cur_features_locations_[i].y - new_velocity.y);
-
+                    new_velocities.push_back(new_velocity);
+                    new_features_locations.emplace_back(cur_features_locations_[i].x - new_velocity.x, 
+                                            cur_features_locations_[i].y - new_velocity.y);
+                }
+                else
+                {
+                    std::cout << "ignore feature close to broader: " 
+                              << cur_features_locations_.at(i) << std::endl;
+                }
             }
 
             cur_features_locations_ = new_features_locations;
@@ -50,12 +62,7 @@ public:
         }
 
         last_im_ = cur_im;
-
-        // // precompute grad for last image
-        // constexpr int KERNAL_SIZE = 3;
-        // cv::Sobel( last_im_, last_im_grad_x_, CV_16S, 1, 0, KERNAL_SIZE);
-        // cv::Sobel( last_im_, last_im_grad_y_, CV_16S, 0, 1, KERNAL_SIZE);
-
+        // Precompute numurical derivatives for real-time performance.
         last_im_grad_x_ = compute_derivatives(last_im_, "x");
         last_im_grad_y_ = compute_derivatives(last_im_, "y");
 
@@ -69,7 +76,6 @@ public:
         cv::Mat im_debug = last_im_.clone();
         for(const auto &p : cur_features_locations_)
         {
-            // std::cout << "feature p: " << p << std::endl;
             cv::circle(im_debug, p, 10, 240);
         }
         cv::imshow(wname, im_debug);
@@ -83,24 +89,24 @@ public:
         if(type == "x")
         {
             // Note: filter2d flip the image patch
-            cv::Mat x_grad_kernal = (cv::Mat_<double>(3,3) << 0, 0, 0, 
-                                                              -0.5, 0, 0.5, 
-                                                              0, 0, 0);
+            cv::Mat x_grad_kernal = (cv::Mat_<double>(3,3) << 0, 0, 0,        // NOLINT
+                                                              -0.5, 0, 0.5,   // NOLINT
+                                                              0, 0, 0);       // NOLINT
             cv::filter2D(src, result, CV_32F , x_grad_kernal);
 
             assert(std::abs(result.at<float>(10, 10) - (src.at<float>(10, 11) - src.at<float>(10, 9)) / 2.)
-                < 1e-8 && "xgradient checking failed");
+                < 1e-8 && "x gradient checking failed");
         }
         else if(type == "y")
         {
             // Note: filter2d flip the image patch
-            cv::Mat y_grad_kernal = (cv::Mat_<double>(3,3) << 0, -0.5, 0, 
-                                                              0, 0, 0, 
-                                                              0, 0.5, 0);
+            cv::Mat y_grad_kernal = (cv::Mat_<double>(3,3) << 0, -0.5, 0,    // NOLINT
+                                                              0, 0, 0,       // NOLINT
+                                                              0, 0.5, 0);    // NOLINT
             cv::filter2D(src, result, CV_32F , y_grad_kernal);
 
             assert(std::abs(result.at<float>(10, 10) - (src.at<float>(11, 10) - src.at<float>(9, 10)) / 2.)
-                < 1e-8 && "ygradient checking failed");
+                < 1e-8 && "y gradient checking failed");
         }
         else
         {
@@ -129,22 +135,67 @@ public:
 
 private:
 
+    void clear_and_detect_features(const cv::Mat &cur_im)
+    {
+        constexpr int MAX_FEATURES = 70;
+        constexpr double QUALITY_LEVEL = 0.01;
+        constexpr double MIN_DISTANCE = 20;
+
+        cv::goodFeaturesToTrack(cur_im, cur_features_locations_, MAX_FEATURES, QUALITY_LEVEL, MIN_DISTANCE);
+        cur_features_velocities_ = std::vector<cv::Point2f>(cur_features_locations_.size(), cv::Point2f(0,0.));
+
+        constexpr bool MANUAL = false;
+        if(MANUAL)
+        {
+            cur_features_locations_ = {{160, 130.}};
+            cur_features_velocities_ = {{0, 0.}};
+        }
+    }
+
     cv::Point2f lucas_kanada_least_sqaures(const cv::Point2f &velocity, const cv::Point2f &location, const cv::Mat &cur_im)
     {
+        // We can also update the feature localization. Ignore for simplicity.
         cv::Point2f optimization_vars = velocity;
-        // cv::Point2f optimization_vars = {0,0.};
+        cv::Point2f feature_loc_cur_frame = location;
 
-        for(size_t iters = 0; iters < 3; ++iters)
+        constexpr size_t MAX_ITERS = 3;
+        for(size_t iters = 0; iters < MAX_ITERS; ++iters)
         {
-            std::cout << "optimization_vars: " << optimization_vars << std::endl;
-            const cv::Mat J = compute_jacobian(optimization_vars, location, last_im_grad_x_, last_im_grad_y_);
-            const cv::Mat b = compute_b(optimization_vars, location, last_im_, cur_im);
+            const cv::Mat J = compute_jacobian(optimization_vars, feature_loc_cur_frame, 
+                last_im_grad_x_, last_im_grad_y_);
+                
+            const cv::Mat b = compute_b(optimization_vars, feature_loc_cur_frame, 
+                last_im_, cur_im);
 
             cv::Point2f delta = solve_normal_equation(J, b);
             optimization_vars += delta;
+            // Minus because of dx,dy is moded as last_x + dx = cur_x
+            feature_loc_cur_frame -= optimization_vars;
+
+            if(not feature_within_image(feature_loc_cur_frame))
+            {
+                std::cout << "feature out of bound in GN iteration" << std::endl;
+                break;
+            }
         }
 
         return optimization_vars;
+    }
+
+    bool feature_within_image(const cv::Point2f &feature_location)
+    {
+        const auto & x = feature_location.x;
+        const auto & y = feature_location.y;
+
+        if(x + half_window_size_ < last_im_.cols && x - half_window_size_ >= 0 
+           && y + half_window_size_ < last_im_.cols && y - half_window_size_ >= 0)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     cv::Mat compute_jacobian(const cv::Point2f &velocity, 
@@ -160,38 +211,16 @@ private:
         {
             for(float x = location.x - half_window_size_; x <= location.x + half_window_size_ + 1e-6; x += 1.)
             {
-                // std::cout << "x y" << x << " " << y << std::endl;
                 const float last_x = x + velocity.x;
                 const float last_y = y + velocity.y;
-
-                // std::cout << "velocity: " << velocity << std::endl;
-                // std::cout << "xy out: "<<  cv::Point2f(last_x, last_y) << std::endl;
-
-                if(true)
-                {
-                    // dx
-                    jacobian.at<float>(count, 0) = -bilinear_interp(last_im_grad_x_, {last_x, last_y});
-                    // dy
-                    jacobian.at<float>(count, 1) = -bilinear_interp(last_im_grad_y_, {last_x, last_y});
-                    ++count;
-                }
-                else
-                {
-                    int x = static_cast<int>(last_x);
-                    int y = static_cast<int>(last_y);
-
-                    // dx
-                    jacobian.at<float>(count, 0) = -(last_im_.at<float>(y, x + 1) - last_im_.at<float>(y, x - 1)) / 2.;
-                    // dy
-                    jacobian.at<float>(count, 1) = -(last_im_.at<float>(y + 1, x) - last_im_.at<float>(y- 1, x)) / 2.;
-
-                    ++count;
-                }
-            }
+                // dx
+                jacobian.at<float>(count, 0) = -bilinear_interp(last_im_grad_x_, {last_x, last_y});
+                // dy
+                jacobian.at<float>(count, 1) = -bilinear_interp(last_im_grad_y_, {last_x, last_y});
+                ++count;
+            }        
         }
 
-        std::cout << "Count: " << count << std::endl;
-        
         assert(count == patch_size);
         return jacobian;
     }
@@ -212,13 +241,14 @@ private:
                 const float last_x = x + velocity.x;
                 const float last_y = y + velocity.y;
 
-                b.at<float>(count, 0) = cur_im.at<float>(y,x) - bilinear_interp(last_im, {last_x, last_y});
+                b.at<float>(count, 0) = bilinear_interp(cur_im, {x, y}) - bilinear_interp(last_im, {last_x, last_y});
                 
                 ++count;
             }
         }
-
+        
         assert(count == patch_size);
+
 
         return b; 
     }
@@ -228,14 +258,10 @@ private:
         cv::Mat_<float> delta;
         
         // J^T J delta = -J^T b
-        //cv::solve(jacobian, -b, delta, cv::DECOMP_CHOLESKY | cv::DECOMP_NORMAL);
+        cv::solve(jacobian, -b, delta, cv::DECOMP_CHOLESKY | cv::DECOMP_NORMAL);
 
-        cv::Mat right = jacobian.t() * jacobian;
-        cv::Mat left = - jacobian.t() * b;
-        cv::solve(right, left, delta);
-
-        std::cout << "Hessian: " << right << std::endl;
-        std::cout << "Delta : " << delta << std::endl;
+        // std::cout << "Hessian: " << right << std::endl;
+        // std::cout << "Delta : " << delta << std::endl;
 
         return {delta.at<float>(0,0), delta.at<float>(1,0)};
     }
@@ -258,7 +284,7 @@ private:
         const float dx = pt.x - static_cast<float>(x);
         const float dy = pt.y - static_cast<float>(y);
 
-        assert(dx >= 0 && dy >= 0 && "dx dy less then 0");
+        assert(dx >= 0 && dy >= 0 && "dx dy less than 0");
 
         const float v1 = img.at<float>(y0, x0);
         const float v2 = img.at<float>(y0, x1);
@@ -268,21 +294,11 @@ private:
         const float val = (v1 * (1. - dx) + v2 * dx) * (1 - dy)
                   + (v3 * (1. - dx) + v4 * dx) * dy;
 
-        // std::cout << "pt xy:" << pt << std::endl;
-        // std::cout << "x y: " << x << ", " << y << std::endl;
-        // std::cout << "x0 y0: " << x0 << ", " << y0 << std::endl;
-        // std::cout << "x1 y1: " << x1 << ", " << y1 << std::endl;
-        // std::cout << "v1: " << v1 << std::endl;
-        // std::cout << "v2: " << v2 << std::endl;
-        // std::cout << "v3: " << v3 << std::endl;
-        // std::cout << "v4: " << v4 << std::endl;
-        // std::cout << "val: " << val << std::endl;
-
         return val;
     }
 
     // Config
-    float half_window_size_ = 20;
+    float half_window_size_ = 14;
 
     // Internal states
     std::vector<cv::Point2f> cur_features_locations_;

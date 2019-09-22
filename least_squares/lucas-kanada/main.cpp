@@ -38,11 +38,45 @@ struct ImageIO
 
     bool has_more() const
     {
-        return idx < 700;
+        return idx <= 725;
     }
 
     std::string image_dir_path = "";
-    size_t idx = 200;
+    size_t idx = 1;
+};
+
+
+struct DebugImages
+{
+    cv::Mat read_next()
+    {
+        cv::Mat image = cv::Mat::zeros(1000, 1000, CV_32F);
+
+        // select a region of interest
+        cv::Mat pRoi = image(cv::Rect(rect_pos.x + idx, rect_pos.y, 20, 20));
+
+        // set roi to some rgb colour   
+        pRoi.setTo(0.5);
+        // more region with gredient.
+        cv::GaussianBlur( image, image, cv::Size(5,5), 0, 0, cv::BORDER_DEFAULT );
+        
+        if(false)
+        {
+            imshow( "write process", image );
+            cv::waitKey(1);
+        }
+
+        ++idx;
+        return image;
+    }
+
+    bool has_more() const
+    {
+        return idx <= 725;
+    }
+
+    size_t idx = 0; 
+    cv::Point2f rect_pos = {160, 130};
 };
 
 
@@ -50,14 +84,18 @@ int main(int argc, char *argv[])
 {
     const std::string image_dir_path = "/home/yimu/Desktop/yimu-blog/data/image_seqence_basketball";
     ImageIO imageio(image_dir_path);
+    
+    // DebugImages imageio;
 
     LucasKanadaTracker lk_tracker;
 
     while(imageio.has_more())
     {
         const auto image = imageio.read_next();
+
+        constexpr int IMAGE_DT_MS = 1;
         lk_tracker.track(image);
-        lk_tracker.show_features("features", -1);
+        lk_tracker.show_features("features", IMAGE_DT_MS);
     }
 
     return 0;
