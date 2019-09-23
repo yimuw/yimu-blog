@@ -144,8 +144,8 @@ private:
         cv::goodFeaturesToTrack(cur_im, cur_features_locations_, MAX_FEATURES, QUALITY_LEVEL, MIN_DISTANCE);
         cur_features_velocities_ = std::vector<cv::Point2f>(cur_features_locations_.size(), cv::Point2f(0,0.));
 
-        constexpr bool MANUAL = false;
-        if(MANUAL)
+        constexpr bool MANUAL_DETECTION = false;
+        if(MANUAL_DETECTION)
         {
             cur_features_locations_ = {{160, 130.}};
             cur_features_velocities_ = {{0, 0.}};
@@ -168,6 +168,7 @@ private:
                 last_im_, cur_im);
 
             cv::Point2f delta = solve_normal_equation(J, b);
+
             optimization_vars += delta;
             // Minus because of dx,dy is moded as last_x + dx = cur_x
             feature_loc_cur_frame -= optimization_vars;
@@ -175,6 +176,12 @@ private:
             if(not feature_within_image(feature_loc_cur_frame))
             {
                 std::cout << "feature out of bound in GN iteration" << std::endl;
+                break;
+            }
+
+            // stop condition
+            if(delta.dot(delta) < 1e-4)
+            {
                 break;
             }
         }
@@ -207,6 +214,7 @@ private:
         cv::Mat jacobian(patch_size, 2, CV_32F);
 
         size_t count = 0;
+        // The 2 for loops can be generized by a kernal function.
         for(float y = location.y - half_window_size_; y <= location.y + half_window_size_ + 1e-6; y += 1.)
         {
             for(float x = location.x - half_window_size_; x <= location.x + half_window_size_ + 1e-6; x += 1.)
@@ -241,7 +249,8 @@ private:
                 const float last_x = x + velocity.x;
                 const float last_y = y + velocity.y;
 
-                b.at<float>(count, 0) = bilinear_interp(cur_im, {x, y}) - bilinear_interp(last_im, {last_x, last_y});
+                b.at<float>(count, 0) = bilinear_interp(cur_im, {x, y}) 
+                    - bilinear_interp(last_im, {last_x, last_y});
                 
                 ++count;
             }
