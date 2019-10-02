@@ -6,6 +6,7 @@
 
 class LucasKanadaTracker
 {
+    using Hessian = cv::Mat;
 public:
     LucasKanadaTracker()
     {
@@ -37,6 +38,7 @@ public:
 
             std::vector<cv::Point2f> new_features_locations;
             std::vector<cv::Point2f> new_velocities;
+            std::vector<Hessian> new_hessians;
 
             for(size_t i = 0; i < cur_features_locations_.size(); i++)
             {
@@ -44,13 +46,16 @@ public:
                     // last image inbound
                     and feature_within_image(cur_features_locations_.at(i) + cur_features_velocities_.at(i)))
                 {
+                    Hessian hessian;
                     cv::Point2f new_velocity = lucas_kanada_least_sqaures(cur_features_velocities_.at(i), 
                                                                         cur_features_locations_.at(i), 
-                                                                        cur_im);
-
+                                                                        cur_im,
+                                                                        &hessian);
+                    // We can filter by Hessain here.
                     new_velocities.push_back(new_velocity);
                     new_features_locations.emplace_back(cur_features_locations_[i].x - new_velocity.x, 
                                             cur_features_locations_[i].y - new_velocity.y);
+                    new_hessians.push_back(hessian);
                 }
                 else
                 {
@@ -61,6 +66,7 @@ public:
 
             cur_features_locations_ = new_features_locations;
             cur_features_velocities_ = new_velocities;
+            hessians_ = new_hessians;
         }
 
         last_im_ = cur_im;
@@ -79,6 +85,41 @@ public:
         for(const auto &p : cur_features_locations_)
         {
             cv::circle(im_debug, p, 10, 240);
+        }
+        cv::imshow(wname, im_debug);
+        cv::waitKey(dt);
+    }
+
+    void show_features_with_covariance(const std::string wname = "features",
+                      const size_t dt = 50)
+    {
+        cv::Mat im_debug = last_im_.clone();
+        assert(cur_features_locations_.size() == hessians_.size());
+        for(size_t i = 0; i < hessians_.size(); ++i)
+        {
+            auto &p = cur_features_locations_[i];
+            auto &hessian = hessians_[i];
+
+            cv::Mat eigenvalues;
+            cv::Mat eigenvectors;
+            cv::eigen(hessian.inv(),eigenvalues,eigenvectors);
+
+            const float theta = std::atan2(eigenvectors.at<float>(0,1), eigenvectors.at<float>(0,0)) / M_PI * 180.;
+            constexpr float SCALE = 10;
+            const int l1 = static_cast<int>(SCALE * std::sqrt(eigenvalues.at<float>(0,0)));
+            const int l2 = static_cast<int>(SCALE * std::sqrt(eigenvalues.at<float>(1,0)));
+
+            constexpr double MAX_STD = 50;
+            if(l1 > MAX_STD)
+            {
+                // Bad tracks
+                cv::ellipse(im_debug, p, {static_cast<int>(MAX_STD), static_cast<int>(l2 * MAX_STD / l1)}, 
+                    theta, 0, 360, {0});
+            }
+            else
+            {
+                cv::ellipse(im_debug, p, {l1, l2}, theta, 0, 360, {255});
+            }
         }
         cv::imshow(wname, im_debug);
         cv::waitKey(dt);
@@ -146,6 +187,9 @@ private:
         cv::goodFeaturesToTrack(cur_im, cur_features_locations_, MAX_FEATURES, QUALITY_LEVEL, MIN_DISTANCE);
         cur_features_velocities_ = std::vector<cv::Point2f>(cur_features_locations_.size(), cv::Point2f(0,0.));
 
+        cv::Mat hessian_default = (cv::Mat_<double>(2,2) << 1, 0, 0, 1.);
+        hessians_ = std::vector<Hessian>(cur_features_locations_.size(), hessian_default);
+
         constexpr bool MANUAL_DETECTION = false;
         if(MANUAL_DETECTION)
         {
@@ -154,7 +198,10 @@ private:
         }
     }
 
-    cv::Point2f lucas_kanada_least_sqaures(const cv::Point2f &velocity, const cv::Point2f &location, const cv::Mat &cur_im)
+    cv::Point2f lucas_kanada_least_sqaures(const cv::Point2f &velocity, 
+                                           const cv::Point2f &location, 
+                                           const cv::Mat &cur_im,
+                                           Hessian * const hessian_ptr)
     {
         // We can also update the feature localization. Ignore for simplicity.
         cv::Point2f optimization_vars = velocity;
@@ -169,7 +216,7 @@ private:
             const cv::Mat b = compute_b(optimization_vars, feature_loc_cur_frame, 
                 last_im_, cur_im);
 
-            cv::Point2f delta = solve_normal_equation(J, b);
+            cv::Point2f delta = solve_normal_equation(J, b, hessian_ptr);
 
             optimization_vars += delta;
             // Minus because of dx,dy is moded as last_x + dx = cur_x
@@ -208,9 +255,9 @@ private:
     }
 
     cv::Mat compute_jacobian(const cv::Point2f &velocity, 
-                          const cv::Point2f &location, 
-                          const cv::Mat &last_im_grad_x_, 
-                          const cv::Mat &last_im_grad_y_)
+                            const cv::Point2f &location, 
+                            const cv::Mat &last_im_grad_x_, 
+                            const cv::Mat &last_im_grad_y_)
     {
         const int patch_size = (half_window_size_ * 2 + 1) * (half_window_size_ * 2 + 1);
         cv::Mat jacobian(patch_size, 2, CV_32F);
@@ -264,15 +311,20 @@ private:
         return b; 
     }
 
-    cv::Point2f solve_normal_equation(const cv::Mat &jacobian, const cv::Mat &b)
+    cv::Point2f solve_normal_equation(const cv::Mat &jacobian, 
+                                      const cv::Mat &b,
+                                      Hessian * const hessian_ptr)
     {
         cv::Mat_<float> delta;
         
         // J^T J delta = -J^T b
         cv::solve(jacobian, -b, delta, cv::DECOMP_CHOLESKY | cv::DECOMP_NORMAL);
 
-        // std::cout << "Hessian: " << right << std::endl;
-        // std::cout << "Delta : " << delta << std::endl;
+        // std::optional
+        if(hessian_ptr != nullptr)
+        {
+            *hessian_ptr = jacobian.t() * jacobian;
+        }
 
         return {delta.at<float>(0,0), delta.at<float>(1,0)};
     }
@@ -314,6 +366,8 @@ private:
     // Internal states
     std::vector<cv::Point2f> cur_features_locations_;
     std::vector<cv::Point2f> cur_features_velocities_;
+    std::vector<Hessian> hessians_;
+    
     uint64_t frame_count_ = 0;
     cv::Mat last_im_;
     cv::Mat last_im_grad_x_;

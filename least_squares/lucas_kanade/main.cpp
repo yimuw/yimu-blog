@@ -95,7 +95,9 @@ int main(int argc, char *argv[])
 
         constexpr int IMAGE_DT_MS = 1;
         lk_tracker.track(image);
-        lk_tracker.show_features("features", IMAGE_DT_MS);
+        
+        // lk_tracker.show_features("features", IMAGE_DT_MS);
+        lk_tracker.show_features_with_covariance("features", IMAGE_DT_MS);
     }
 
     return 0;
