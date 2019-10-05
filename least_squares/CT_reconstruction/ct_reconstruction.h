@@ -29,7 +29,7 @@ public:
     
     cv::Mat generate_small_im()
     {
-        constexpr int im_size = 30;
+        constexpr int im_size = 100;
 
         cv::Mat image(im_size,im_size, CV_32F, cv::Scalar(0.));
 
@@ -78,7 +78,8 @@ public:
         // Loop x
         constexpr double HALF_SPACE_A = 0.5;
 
-        std::cout << "a b theta " << a << "," << b << "," << theta << "\n";
+        std::cout << "center: " << center << " a b theta " << a << "," << b << "," << theta << "\n";
+
         if(std::abs(a) < HALF_SPACE_A)
         {
             for(size_t x = 0; x < image_size_x; ++x)
@@ -109,12 +110,14 @@ public:
 
         std::vector<ScanLine> scan_lines;
         
-        for(size_t iter = 0; iter < image_size_x * image_size_y; ++iter)
+        const size_t num_scans = 1.5 * image_size_x * image_size_y;
+        for(size_t iter = 0; iter < num_scans; ++iter)
         {
-            const float x = image_size_x * (static_cast<float>(rand()) / (RAND_MAX));
-            const float y = image_size_y * (static_cast<float>(rand()) / (RAND_MAX));
+            constexpr float MARGIN = 5;
+            const float x = (image_size_x - 2 * MARGIN) * (static_cast<float>(rand()) / (RAND_MAX)) + MARGIN;
+            const float y = (image_size_x - 2 * MARGIN) * (static_cast<float>(rand()) / (RAND_MAX)) + MARGIN;
             // PI should cover the whole space
-            const double theta = M_PI * (static_cast<double>(rand()) / (RAND_MAX));
+            const double theta = 2 * M_PI * (static_cast<double>(rand()) / (RAND_MAX));
             
             scan_lines.emplace_back(ct_scan_single_line({x, y}, theta, image));
         }
@@ -142,23 +145,33 @@ public:
             }
         }
 
-        std::cout << equation.b.t() << std::endl;
-
         return equation;
     }
 
-    void solve_normal_equation_dense()
+    void solve_normal_equation_dense(const cv::Mat &image,
+                                     const DenseEquation &equation)
     {
+        const size_t num_variables = image.cols * image.rows;
+        const size_t num_equations = equation.b.rows;
+        // want to minimize f = 1/n * (Ax - b)^2
+        // df / dx = 2/n * (Ax - b) * A.T
+        const cv::Mat &A = equation.A;
+        const cv::Mat &b = equation.b;
 
+        cv::Mat_<float> x;
+        cv::solve(A, b, x, cv::DECOMP_CHOLESKY | cv::DECOMP_NORMAL);
+
+        show_variables({image.rows, image.cols}, x, -1);
     }
 
     void show_variables(const cv::Size im_size,
-                        const cv::Mat variables)
+                        const cv::Mat variables,
+                        const int wait_time = 1)
     {
-        cv::Mat im;
-        cv::resize(variables, im, im_size, 0, 0, cv::INTER_LINEAR);
+        // wried func signature...
+        cv::Mat im = variables.reshape(1, im_size.height);
         cv::imshow("variable", im);
-        cv::waitKey(100);
+        cv::waitKey(wait_time);
     }
 
     void debug_mat(const cv::Mat &m, std::string info = "mat")
@@ -170,23 +183,24 @@ public:
                          const DenseEquation &equation)
     {
         const size_t num_variables = image.cols * image.rows;
-        // want to minimize f = (Ax - b)^2
-        // df / dx = 2 * (Ax - b) * A.T
+        const size_t num_equations = equation.b.rows;
+        // want to minimize f = 1/n * (Ax - b)^2
+        // df / dx = 2/n * (Ax - b) * A.T
         const cv::Mat &A = equation.A;
         const cv::Mat &b = equation.b;
         cv::Mat x = cv::Mat(num_variables, 1, CV_32F, cv::Scalar(0.));
 
-        constexpr size_t MAX_ITERS = 100;
-        constexpr double STEP_K = 0.001;
+        constexpr size_t MAX_ITERS = 1000;
+        constexpr double STEP_K = 0.1;
         for(size_t iter = 0; iter < MAX_ITERS; ++iter)
         {
             std::cout << "iter: " << iter << std::endl;
-            const cv::Mat grad = 2 * (A*x - b).t() * A;
+            const cv::Mat grad = 2. / num_equations * (A*x - b).t() * A;
             // debug_mat(grad, "grad");
 
             x -= STEP_K * grad.t();
 
-            std::cout << "grad:" << grad << std::endl;
+            // std::cout << "grad:" << grad << std::endl;
 
             show_variables({image.rows, image.cols}, x);
         }
@@ -205,7 +219,21 @@ public:
         std::vector<ScanLine> scans = ct_scan_random(scaned_image);
         DenseEquation equation = scans_to_dense_Ab(scaned_image, scans);
 
-        gradient_desent(scaned_image, equation);
+        if(params_.optimizer_type == "gradient_desent")
+        {
+            gradient_desent(scaned_image, equation);
+        }
+        else if(params_.optimizer_type == "least_square_dense")
+        {
+            solve_normal_equation_dense(scaned_image, equation);
+        }
 
     }
+
+    struct Params
+    {
+        std::string optimizer_type = "least_square_dense";
+    };
+
+    Params params_;
 };
