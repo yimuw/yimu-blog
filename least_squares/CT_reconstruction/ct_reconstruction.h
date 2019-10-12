@@ -29,13 +29,20 @@ public:
     
     cv::Mat generate_small_im()
     {
-        constexpr int im_size = 100;
+        constexpr int im_size = 30;
 
         cv::Mat image(im_size,im_size, CV_32F, cv::Scalar(0.));
 
-        cv::Rect region_of_interest = cv::Rect(im_size / 2, im_size / 2, im_size / 4, im_size / 4);
-        cv::Mat image_roi = image(region_of_interest);
-        image_roi.setTo(1.);
+        {
+            cv::Rect region_of_interest = cv::Rect(im_size / 2, im_size / 2, im_size / 4, im_size / 4);
+            cv::Mat image_roi = image(region_of_interest);
+            image_roi.setTo(1.);
+        }
+        {
+            cv::Rect region_of_interest = cv::Rect(0, 0, im_size / 4, im_size / 4);
+            cv::Mat image_roi = image(region_of_interest);
+            image_roi.setTo(0.5);
+        }
 
         return image;
     }
