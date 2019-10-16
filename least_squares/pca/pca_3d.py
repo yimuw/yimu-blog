@@ -104,6 +104,8 @@ class PCA_SO3_projection_minimization:
 
             df1/dw = [R * G1 , R * G2, R * G3], ((3,3), 3)
         """
+        
+
         G1 = np.array([
             [0, 0, 0],
             [0, 0, -1],
