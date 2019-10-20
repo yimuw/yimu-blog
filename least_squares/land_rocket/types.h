@@ -11,9 +11,10 @@ using Vector7d = Eigen::Matrix<double, 7, 1>;
 using TimeStamp = double;
 using TimeDuration = double;
 
+
 struct RocketState
 {
-    enum StateIndex
+    enum StateIndex : int16_t
     {
         i_dt = 0,
         i_position_x,
@@ -24,6 +25,21 @@ struct RocketState
         i_acceleration,
         STATE_SIZE
     };
+
+    explicit RocketState(const double dt,
+                const double px,
+                const double py,
+                const double vel,
+                const double heading,
+                const double turning_rate,
+                const double acceleration)
+    {
+        variables << dt, px, py, vel, heading, turning_rate, acceleration;
+    }
+
+    RocketState()
+    {
+    }
 
     int variable_size() const
     {
@@ -92,7 +108,7 @@ struct RocketState
         return variables[i_acceleration];
     }
 
-    Vector7d variables;
+    Vector7d variables = Vector7d::Zero();
 };
 
 struct Trajectory
