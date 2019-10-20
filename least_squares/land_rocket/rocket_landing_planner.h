@@ -59,7 +59,12 @@ public:
         }
     }
 
-private:
+    Trajectory get_trajectory() const
+    {
+        return trajectory_;
+    }
+
+protected:
     // initial guess for all variables
     void initialize_trajectory()
     {
@@ -97,7 +102,6 @@ private:
         }
     }
 
-
     RocketLandingResiduals compute_residaul()
     {
         RocketLandingResiduals residuals;
@@ -125,6 +129,7 @@ private:
     VectorXd solve_least_squares(const RocketLandingResiduals &residaul)
     {
         DenseSolver dense_solver;
+        // DenseSolverUpdateInPlace dense_solver;
         VectorXd delta = dense_solver.solver_rocket_landing_least_squares(residaul);
         return delta;
     }
@@ -134,7 +139,7 @@ private:
         for(int state_i = 0; state_i < num_states_; ++state_i)
         {
             const VectorXd delta_i = delta.segment(state_i * RocketState::STATE_SIZE, RocketState::STATE_SIZE);
-            std::cout << "i:" << state_i << "delta_i :" << delta_i.transpose() << std::endl;
+            // std::cout << "i:" << state_i << "delta_i :" << delta_i.transpose() << std::endl;
             trajectory_.states.at(state_i).variables += k * delta_i;
         }
     }

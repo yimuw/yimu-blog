@@ -6,7 +6,16 @@ add_definitions(-g -Wall)
 
 project(rocket-landing)
 
+find_package(PythonLibs 2.7)
+
 add_executable(rocket_landing main.cpp)
-# target_link_libraries(rocket_landing)
+target_include_directories(rocket_landing PRIVATE 
+                           ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(rocket_landing 
+                      ${PYTHON_LIBRARIES})
+
+
+add_executable(test_rocket_landing_solver solver_tests.cpp)
+
 
 

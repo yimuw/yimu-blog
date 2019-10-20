@@ -14,6 +14,8 @@ using TimeDuration = double;
 
 struct RocketState
 {
+    // Using a single dt is a better option.
+    // But it make index handling a little bit more complex.
     enum StateIndex : int16_t
     {
         i_dt = 0,
@@ -115,4 +117,3 @@ struct Trajectory
 {
     std::vector<RocketState> states;
 };
-
