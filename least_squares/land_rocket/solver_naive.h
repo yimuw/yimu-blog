@@ -8,19 +8,9 @@
 #include "residuals.h"
 
 
-// A solver for rocket landing problem
-class DenseSolver
+class RocketLandingSolver
 {
 public:
-    virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual)
-    {
-        const LinearizedResidual linearized_residuals = linearized_residual_function(residual);
-        NormalEqution normal_equ = linear_function_to_normal_equation(linearized_residuals);
-        apply_regularization(residual, normal_equ);
-        return solve_normal_eqution(normal_equ);
-    }
-
-protected:
     struct LinearizedResidual
     {
         LinearizedResidual(const size_t num_equations, const size_t num_variables)
@@ -55,7 +45,27 @@ protected:
         VectorXd rhs;
     };
 
-    virtual void add_residual(const Residual &residual,
+    virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) = 0;
+
+protected:
+    virtual VectorXd solve_normal_eqution(NormalEqution &quadratic) = 0;
+};
+
+
+// A solver for rocket landing problem
+class DenseSolver : public RocketLandingSolver
+{
+public:
+    virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual)
+    {
+        const LinearizedResidual linearized_residuals = linearized_residual_function(residual);
+        NormalEqution normal_equ = linear_function_to_normal_equation(linearized_residuals);
+        apply_regularization(residual, normal_equ);
+        return solve_normal_eqution(normal_equ);
+    }
+
+protected:
+    void add_residual(const Residual &residual,
                       int &residual_idx,
                       LinearizedResidual &equ)
     {
@@ -142,6 +152,18 @@ protected:
             std::cout << "residual.velocity_regularization: " << residual.velocity_regularization << std::endl;
             set_regularization_func(residual.velocity_regularization, RocketState::i_velocity);
         }
+
+        if(residual.acceleration_regularization > 0)
+        {
+            std::cout << "residual.acceleration_regularization: " << residual.acceleration_regularization << std::endl;
+            set_regularization_func(residual.acceleration_regularization, RocketState::i_acceleration);
+        }
+
+        if(residual.turning_rate_regularization > 0)
+        {
+            std::cout << "residual.turning_rate_regularization: " << residual.turning_rate_regularization << std::endl;
+            set_regularization_func(residual.turning_rate_regularization, RocketState::i_turning_rate);
+        }
     }
 
     // cost = ||Ax + b||_w 
@@ -174,7 +196,7 @@ protected:
         return normal_equ;
     }
 
-    VectorXd solve_normal_eqution(NormalEqution &quadratic)
+    virtual VectorXd solve_normal_eqution(NormalEqution &quadratic)
     {
         auto &lhs = quadratic.lhs;
         auto &rhs = quadratic.rhs;

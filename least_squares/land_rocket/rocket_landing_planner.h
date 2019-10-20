@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <cmath>
+#include <memory>
 
 #include "types.h"
 #include "residuals.h"
@@ -25,6 +26,9 @@ public:
         Vector7d weight_start;
         
         Vector7d weight_end;
+
+        // "dense", "dense_in_place", "sparse"
+        std::string solver_type = "sparse";
     };
 
     RocketLandingPlanner(const RocketState &start_state,
@@ -37,17 +41,18 @@ public:
 
     void solve()
     {
-        print_variables();
+        // print_variables();
 
         for(size_t i = 0; i < config_.iterations; ++i)
         {
-            RocketLandingResiduals residuals = compute_residaul();
-            VectorXd delta = solve_least_squares(residuals);
-            std::cout << "delta: " << delta.transpose() << std::endl;
+            const RocketLandingResiduals residuals = compute_residaul();
+            const VectorXd delta = solve_least_squares(residuals);
             update_variables(delta, config_.update_step_size);
 
-            print_variables();
+            // print_variables();
         }
+
+        print_variables();
     }
 
     void print_variables() const
@@ -104,6 +109,7 @@ protected:
 
     RocketLandingResiduals compute_residaul()
     {
+        assert(num_states_ >= 2);
         RocketLandingResiduals residuals;
 
         assert(trajectory_.states.size() == static_cast<size_t>(num_states_));
@@ -121,16 +127,37 @@ protected:
 
         residuals.num_rocket_states = num_states_;
         residuals.time_regularization = 0.1;
-        residuals.velocity_regularization = -1;
+        residuals.velocity_regularization = 0.1;
+        residuals.acceleration_regularization = 0.05;
+        residuals.turning_rate_regularization = 0.05;
 
         return residuals;
     }
 
     VectorXd solve_least_squares(const RocketLandingResiduals &residaul)
     {
-        DenseSolver dense_solver;
-        // DenseSolverUpdateInPlace dense_solver;
-        VectorXd delta = dense_solver.solver_rocket_landing_least_squares(residaul);
+        std::shared_ptr<RocketLandingSolver> solver_ptr;
+
+        // "dense", "dense_in_place", "sparse"
+        if(config_.solver_type == "dense")
+        {
+            solver_ptr = std::make_shared<DenseSolver>();
+        }   
+        else if(config_.solver_type == "dense_in_place")
+        {
+            solver_ptr = std::make_shared<DenseSolverUpdateInPlace>();
+        }
+        else if(config_.solver_type == "sparse")
+        {
+            solver_ptr = std::make_shared<SparseSolver>();
+        }
+        else
+        {
+            assert(false && "dude, solver not support");
+        }
+
+        VectorXd delta = solver_ptr->solver_rocket_landing_least_squares(residaul);
+        
         return delta;
     }
 
@@ -154,5 +181,5 @@ protected:
 
     RocketState start_state_;
     RocketState end_state_;
-    int num_states_ = 100;
+    int num_states_ = -1;
 };

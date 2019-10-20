@@ -76,6 +76,8 @@ struct Residual
 
     virtual MatrixXd weight() const = 0;
 
+    virtual bool is_diagnal_weight() const = 0;
+
     virtual VectorXd residual() const = 0;
 
     virtual int residual_size() const = 0;
@@ -151,6 +153,11 @@ struct MotionResidual : public Residual
         return weight;
     }
 
+    bool is_diagnal_weight() const override
+    {
+        return true;
+    }
+
     int state1_index = -1;
     int state2_index = -1;
     RocketState state1;
@@ -186,10 +193,16 @@ struct PriorResidual : public Residual
     MatrixXd weight() const override
     {
         const int state_size = RocketState::STATE_SIZE;
-        MatrixXd weight_mat(state_size, state_size);
+        MatrixXd weight_mat = MatrixXd::Zero(state_size, state_size);
+        assert(weight_vec.rows() == state_size);
         weight_mat.diagonal() = weight_vec;
 
         return weight_mat;
+    }
+
+    bool is_diagnal_weight() const override
+    {
+        return true;
     }
 
     int residual_size() const override
@@ -253,4 +266,8 @@ struct RocketLandingResiduals
     double time_regularization = -1;
 
     double velocity_regularization = -1;
+
+    double acceleration_regularization = -1;
+
+    double turning_rate_regularization = -1;
 };

@@ -45,10 +45,14 @@ public:
 
 RocketLandingResiduals generate_data()
 {
-    //  dt, x, y, vel, heading, turn_rate, accl
-    RocketState start_state(1., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6);
-    RocketState end_state(1., 10., 10., 0., 0., 0., 0.);
-    int steps = 5;
+    // //  dt, x, y, vel, heading, turn_rate, accl
+    // RocketState start_state(1., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6);
+    // RocketState end_state(1., 10., 10., 0., 0., 0., 0.);
+    // int steps = 20;
+
+    RocketState start_state(1., 0., 0., 0., 0., 0., 0.);
+    RocketState end_state(1., 100., 100., 0., 0., 0., 0.);
+    int steps = 20;
 
     Test_RocketLandingPlanner rocket_landing(start_state, end_state, steps);
     RocketLandingResiduals r = rocket_landing.TEST_compute_residaul();
@@ -66,8 +70,9 @@ VectorXd solve_by(const RocketLandingResiduals &r)
 
 void test_solvers()
 {
-    RocketLandingResiduals r = generate_data();
+    const RocketLandingResiduals r = generate_data();
 
+    // ground truth
     VectorXd delta_dense = solve_by<DenseSolver>(r);
     PRINT_NAME_VAR(delta_dense.transpose());
 
@@ -75,6 +80,11 @@ void test_solvers()
     PRINT_NAME_VAR(delta_dense_in_place.transpose());
 
     test_matrix_almost_equation(delta_dense_in_place, delta_dense);
+
+    VectorXd sparse_delta = solve_by<SparseSolver>(r);
+    PRINT_NAME_VAR(sparse_delta.transpose());
+
+    test_matrix_almost_equation(sparse_delta, delta_dense);
 }
 
 int main(int argc, char *argv[])

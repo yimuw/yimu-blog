@@ -6,31 +6,47 @@
 
 #include "types.h"
 #include "residuals.h"
+#include "utils.h"
 
 
 // A solver for rocket landing problem
 class DenseSolverUpdateInPlace : public DenseSolver
 {
 public:
-    VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
+    virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
     {
         NormalEqution normal_equ = residual_function_to_quadratic(residual);
         apply_regularization(residual, normal_equ);
         return solve_normal_eqution(normal_equ);
     }
 
-private:
+protected:
 
     // cost(x1, x2) = ||Ax1 + b||^2 + ||Ax2 + b||^2
     void add_residual_direct_update(const Residual &residual,
-                      int &residual_idx,
-                      NormalEqution &equ)
+                                    int &residual_idx,
+                                    NormalEqution &equ)
     {
         const MatrixXd jocobi = residual.jacobian();
         const MatrixXd weight = residual.weight();
-        const MatrixXd jtw = jocobi.transpose() * weight;
+        MatrixXd jtw = jocobi.transpose();
+        if(residual.is_diagnal_weight())
+        {
+            for(int c = 0; c < jtw.cols(); ++c)
+            {
+                jtw.col(c) *= weight(c, c);
+            }
+        }
+        else
+        {
+            jtw *= weight;
+        }
+        
         const int v_start_idx = residual.variable_start_index();
         const int v_size =  residual.variable_size();
+        assert(v_start_idx + v_size <= equ.lhs.rows());
+        assert(equ.lhs.rows() == equ.lhs.cols());
+        
         equ.lhs.block(v_start_idx, v_start_idx, v_size, v_size) += jtw * jocobi;
         equ.rhs.segment(v_start_idx, v_size) += - jtw * residual.residual();
 
