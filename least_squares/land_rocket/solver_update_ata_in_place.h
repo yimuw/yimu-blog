@@ -22,6 +22,7 @@ public:
 
 protected:
 
+    // TODO: template to make it faster
     // cost(x1, x2) = ||Ax1 + b||^2 + ||Ax2 + b||^2
     void add_residual_direct_update(const Residual &residual,
                                     int &residual_idx,

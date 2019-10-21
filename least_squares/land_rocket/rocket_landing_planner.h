@@ -19,7 +19,7 @@ public:
             weight_start << 1e-2, 1e3, 1e3, 1e3, 1e4, 1e-3, 1e-3;
             weight_end << 0., 1e3, 1e3, 1e3, 1e4, 1e3, 1e3; 
         }
-        uint32_t iterations = 20;
+        uint32_t iterations = 10;
 
         double update_step_size = 0.5;
 
@@ -47,9 +47,18 @@ public:
         {
             const RocketLandingResiduals residuals = compute_residaul();
             const VectorXd delta = solve_least_squares(residuals);
-            update_variables(delta, config_.update_step_size);
 
-            // print_variables();
+            // update_variables(delta, config_.update_step_size);
+            
+            bool stop = back_tracking_line_search_and_update(residuals, delta);
+
+            if(stop)
+            {
+                std::cout << "Stop at iteration: " << i << std::endl;
+                break;
+            }
+
+            print_variables();
         }
 
         print_variables();
@@ -107,6 +116,43 @@ protected:
         }
     }
 
+    double total_cost(const RocketLandingResiduals residuals)
+    {
+        double total_cost = 0;
+
+        auto regularization_cost = [&residuals](const RocketState &s)
+        {
+            double cost = 0.;
+
+            const double dt1 = s.delta_time();
+            const double vel1 = s.velocity();
+            const double acc1 = s.acceleration();
+            const double tr1 = s.turning_rate();
+
+            cost += residuals.time_regularization * dt1 * dt1;
+            cost += residuals.velocity_regularization * vel1 * vel1;
+            cost += residuals.acceleration_regularization * acc1 * acc1;
+            cost += residuals.turning_rate_regularization * tr1 * tr1;
+
+            return cost;
+        };
+
+        for(size_t i = 0; i < residuals.motion_residuals.size(); ++i)
+        {
+            total_cost += residuals.motion_residuals.at(i).cost();
+
+            total_cost += regularization_cost(residuals.motion_residuals.at(i).state1);
+        }
+
+        total_cost += regularization_cost(residuals.motion_residuals.back().state2);
+
+        total_cost += residuals.start_state_prior.cost();
+        total_cost += residuals.end_state_prior.cost();
+
+        return total_cost;
+    }
+
+    // TODO: scale cost by num_states
     RocketLandingResiduals compute_residaul()
     {
         assert(num_states_ >= 2);
@@ -116,7 +162,7 @@ protected:
         for(int i = 0; i < num_states_ - 1; ++i)
         {
             residuals.motion_residuals.emplace_back(trajectory_.states.at(i), i, 
-                trajectory_.states.at(i + 1), i + 1);
+                trajectory_.states.at(i + 1), i + 1, 1. / num_states_);
         }
 
         residuals.start_state_prior = PriorResidual(trajectory_.states.at(0), 0, 
@@ -159,6 +205,47 @@ protected:
         VectorXd delta = solver_ptr->solver_rocket_landing_least_squares(residaul);
         
         return delta;
+    }
+
+    bool back_tracking_line_search_and_update(const RocketLandingResiduals current_residuals,
+                                              const VectorXd &delta)
+    {
+        constexpr double BACK_TRACKING_SCALE = 0.5;
+
+        const auto current_states = trajectory_.states;
+        const double current_cost = total_cost(current_residuals);
+        double updated_cost = current_cost + 1.;
+        double final_k = 1;
+
+        for(double k = 1.; k > 1e-2; k *= BACK_TRACKING_SCALE)
+        {
+            trajectory_.states = current_states;
+            update_variables(delta, k);
+            const RocketLandingResiduals updated_residuals = compute_residaul();
+            updated_cost = total_cost(updated_residuals);
+
+            if(updated_cost < current_cost)
+            {
+                final_k = k;
+                break;
+            }
+        }
+
+        std::cout << "current_cost :" << current_cost << std::endl;
+        std::cout << "updated_cost :" << updated_cost << std::endl;
+        std::cout << "back tracking k :" << final_k << std::endl;
+
+        // TODO: better stopping condition
+        // simple stoping condition
+        if(current_cost - updated_cost < 1e-1)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+        
     }
 
     void update_variables(const VectorXd &delta, const double k)

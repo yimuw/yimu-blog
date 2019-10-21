@@ -8,6 +8,7 @@ using MatrixXd = Eigen::MatrixXd;
 using VectorXd = Eigen::VectorXd;
 using Vector2d = Eigen::Vector2d;
 using Vector7d = Eigen::Matrix<double, 7, 1>;
+using Matrix7d = Eigen::Matrix<double, 7, 7>;
 using TimeStamp = double;
 using TimeDuration = double;
 

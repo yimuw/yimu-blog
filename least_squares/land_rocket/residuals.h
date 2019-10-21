@@ -86,6 +86,12 @@ struct Residual
 
     // assume variable block
     virtual int variable_start_index() const = 0;
+
+    double cost() const
+    {
+        const VectorXd r = residual();
+        return r.transpose() * weight() * r;
+    }
 };
 
 
@@ -97,8 +103,10 @@ struct MotionResidual : public Residual
     MotionResidual(const RocketState &s1, 
                    const int s1_idx, 
                    const RocketState &s2,
-                   const int s2_idx)
-        : state1_index(s1_idx), state2_index(s2_idx), state1(s1), state2(s2) 
+                   const int s2_idx,
+                   const double w_scale)
+        : weight_scale(w_scale), state1_index(s1_idx), state2_index(s2_idx), 
+          state1(s1), state2(s2) 
     {}
 
     MatrixXd jacobian() const override
@@ -123,7 +131,7 @@ struct MotionResidual : public Residual
         // RocketMotionModel().jacobian_checking_simple(state1);
 
         RocketState state2_pred = RocketMotionModel().motion(state1);
-        VectorXd r = state2_pred.variables - state2.variables;
+        Vector7d r = state2_pred.variables - state2.variables;
 
         return r;
     }
@@ -147,8 +155,11 @@ struct MotionResidual : public Residual
     MatrixXd weight() const override
     {
         const int residual_size = state1.variable_size();
-        MatrixXd weight = MatrixXd::Identity(residual_size, residual_size);
-        weight.diagonal() << 1e2, 1e3, 1e3, 1e3, 1e4, 1., 1.;
+        Vector7d weight_diag;
+        weight_diag << 1e2, 1e3, 1e3, 1e3, 1e4, 1., 1.;
+
+        Matrix7d weight = MatrixXd::Identity(residual_size, residual_size);
+        weight.diagonal() << weight_scale * weight_diag;
 
         return weight;
     }
@@ -157,6 +168,8 @@ struct MotionResidual : public Residual
     {
         return true;
     }
+
+    double weight_scale = 1.;
 
     int state1_index = -1;
     int state2_index = -1;
@@ -186,14 +199,14 @@ struct PriorResidual : public Residual
     // r(x1, x2) = m(x1) - x2
     VectorXd residual() const override
     {
-        VectorXd r = state.variables - prior.variables;
+        Vector7d r = state.variables - prior.variables;
         return r;
     }
 
     MatrixXd weight() const override
     {
         const int state_size = RocketState::STATE_SIZE;
-        MatrixXd weight_mat = MatrixXd::Zero(state_size, state_size);
+        Matrix7d weight_mat = MatrixXd::Zero(state_size, state_size);
         assert(weight_vec.rows() == state_size);
         weight_mat.diagonal() = weight_vec;
 
