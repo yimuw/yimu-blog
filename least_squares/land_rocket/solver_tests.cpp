@@ -46,11 +46,6 @@ public:
 
 RocketLandingResiduals generate_data()
 {
-    // //  dt, x, y, vel, heading, turn_rate, accl
-    // RocketState start_state(1., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6);
-    // RocketState end_state(1., 10., 10., 0., 0., 0., 0.);
-    // int steps = 20;
-
     RocketState start_state(1., 0., 0., 0., 0., 0., 0.);
     RocketState end_state(1., 100., 100., 0., 0., 0., 0.);
     int steps = 20;
@@ -75,22 +70,62 @@ void test_solvers()
 
     // ground truth
     VectorXd delta_dense = solve_by<DenseSolver>(r);
-    PRINT_NAME_VAR(delta_dense.transpose());
 
     VectorXd delta_dense_in_place = solve_by<DenseSolverUpdateInPlace>(r);
-    PRINT_NAME_VAR(delta_dense_in_place.transpose());
-
     test_matrix_almost_equation(delta_dense_in_place, delta_dense);
 
     VectorXd sparse_delta = solve_by<SparseSolver>(r);
-    PRINT_NAME_VAR(sparse_delta.transpose());
-
     test_matrix_almost_equation(sparse_delta, delta_dense);
+}
+
+// No a good test
+void test_residual()
+{
+    RocketState s1(1, 1, 1, 1, 1, 1, 1);
+    RocketState s2(2, 2, 2, 2, 2, 2, 2);
+
+    const Vector7d weight = 3. * Vector7d::Ones();
+
+    Trajectory trajectory;
+
+    trajectory.states = {s1 , s2};
+    s1.delta_time() += 1.23;
+
+    const RocketLandingResiduals residuals = compute_residaul(trajectory, 
+                s1, weight, s2, weight, 2);
+    
+    const double cost_pred = residuals.total_cost();
+
+    auto s2_pred = RocketMotionModel().motion(trajectory.states.at(0));
+    const Vector7d diff = s2_pred.variables - trajectory.states.at(1).variables;
+
+    const double t_reg = residuals.time_regularization;
+    const double v_reg = residuals.velocity_regularization;
+    const double a_reg = residuals.acceleration_regularization;
+    const double r_reg = residuals.turning_rate_regularization;
+
+    auto reg_compute = [&](const RocketState &s)
+    {
+        return t_reg * s.delta_time() * s.delta_time()
+            +  v_reg * s.velocity() * s.velocity()
+            +  a_reg * s.acceleration() * s.acceleration()
+            +  r_reg * s.turning_rate() * s.turning_rate();
+    };
+
+    MatrixXd W = residuals.motion_residuals[0].weight();
+    const double cost_gt = diff.transpose() * W * diff + 1.23 * 1.23 * 3.
+        + reg_compute(trajectory.states.at(0)) + reg_compute(trajectory.states.at(1));
+    PRINT_NAME_VAR(cost_gt);
+    PRINT_NAME_VAR(cost_pred);
+    assert(std::abs(cost_gt - cost_pred) < 1e-8 && "cost checking failed");
+    std::cout << "test_residual passed" << std::endl;
 }
 
 int main(int argc, char *argv[])
 {
     test_solvers();
+
+    test_residual();
 
     return 0;
 }
