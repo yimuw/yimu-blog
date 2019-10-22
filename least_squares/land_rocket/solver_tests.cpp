@@ -39,7 +39,8 @@ public:
     // test protected functions
     RocketLandingResiduals TEST_compute_residaul()
     {
-        return this->compute_residaul();
+        return compute_residaul(trajectory_, 
+                start_state_, config_.weight_start, end_state_, config_.weight_end, num_states_);
     }
 };
 

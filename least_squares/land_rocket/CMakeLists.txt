@@ -8,7 +8,10 @@ project(rocket-landing)
 
 include_directories( /usr/include/suitesparse )
 include_directories( /usr/include/eigen3 )
-find_package(PythonLibs 3.3)
+
+# tricky with anaconda
+# TODO: docker
+find_package(PythonLibs 3.5)
 
 add_executable(rocket_landing 
                main.cpp)

@@ -45,7 +45,8 @@ public:
 
         for(size_t i = 0; i < config_.iterations; ++i)
         {
-            const RocketLandingResiduals residuals = compute_residaul();
+            const RocketLandingResiduals residuals = compute_residaul(trajectory_, 
+                start_state_, config_.weight_start, end_state_, config_.weight_end, num_states_);
             const VectorXd delta = solve_least_squares(residuals);
 
             // update_variables(delta, config_.update_step_size);
@@ -116,70 +117,6 @@ protected:
         }
     }
 
-    double total_cost(const RocketLandingResiduals residuals)
-    {
-        double total_cost = 0;
-
-        auto regularization_cost = [&residuals](const RocketState &s)
-        {
-            double cost = 0.;
-
-            const double dt1 = s.delta_time();
-            const double vel1 = s.velocity();
-            const double acc1 = s.acceleration();
-            const double tr1 = s.turning_rate();
-
-            cost += residuals.time_regularization * dt1 * dt1;
-            cost += residuals.velocity_regularization * vel1 * vel1;
-            cost += residuals.acceleration_regularization * acc1 * acc1;
-            cost += residuals.turning_rate_regularization * tr1 * tr1;
-
-            return cost;
-        };
-
-        for(size_t i = 0; i < residuals.motion_residuals.size(); ++i)
-        {
-            total_cost += residuals.motion_residuals.at(i).cost();
-
-            total_cost += regularization_cost(residuals.motion_residuals.at(i).state1);
-        }
-
-        total_cost += regularization_cost(residuals.motion_residuals.back().state2);
-
-        total_cost += residuals.start_state_prior.cost();
-        total_cost += residuals.end_state_prior.cost();
-
-        return total_cost;
-    }
-
-    // TODO: scale cost by num_states
-    RocketLandingResiduals compute_residaul()
-    {
-        assert(num_states_ >= 2);
-        RocketLandingResiduals residuals;
-
-        assert(trajectory_.states.size() == static_cast<size_t>(num_states_));
-        for(int i = 0; i < num_states_ - 1; ++i)
-        {
-            residuals.motion_residuals.emplace_back(trajectory_.states.at(i), i, 
-                trajectory_.states.at(i + 1), i + 1, 1. / num_states_);
-        }
-
-        residuals.start_state_prior = PriorResidual(trajectory_.states.at(0), 0, 
-            start_state_, config_.weight_start);
- 
-        residuals.end_state_prior = PriorResidual(trajectory_.states.at(num_states_ - 1), 
-            num_states_ - 1, end_state_, config_.weight_end);
-
-        residuals.num_rocket_states = num_states_;
-        residuals.time_regularization = 0.1;
-        residuals.velocity_regularization = 0.1;
-        residuals.acceleration_regularization = 0.05;
-        residuals.turning_rate_regularization = 0.05;
-
-        return residuals;
-    }
-
     VectorXd solve_least_squares(const RocketLandingResiduals &residaul)
     {
         std::shared_ptr<RocketLandingSolver> solver_ptr;
@@ -213,7 +150,7 @@ protected:
         constexpr double BACK_TRACKING_SCALE = 0.5;
 
         const auto current_states = trajectory_.states;
-        const double current_cost = total_cost(current_residuals);
+        const double current_cost = current_residuals.total_cost();
         double updated_cost = current_cost + 1.;
         double final_k = 1;
 
@@ -221,8 +158,9 @@ protected:
         {
             trajectory_.states = current_states;
             update_variables(delta, k);
-            const RocketLandingResiduals updated_residuals = compute_residaul();
-            updated_cost = total_cost(updated_residuals);
+            const RocketLandingResiduals updated_residuals = compute_residaul(trajectory_, 
+                start_state_, config_.weight_start, end_state_, config_.weight_end, num_states_);
+            updated_cost = updated_residuals.total_cost();
 
             if(updated_cost < current_cost)
             {
