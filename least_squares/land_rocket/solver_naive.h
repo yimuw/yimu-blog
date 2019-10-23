@@ -6,6 +6,7 @@
 
 #include "types.h"
 #include "residuals.h"
+#include "least_square_problem.h"
 
 
 class RocketLandingSolver

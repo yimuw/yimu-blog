@@ -6,6 +6,7 @@
 
 #include "types.h"
 #include "residuals.h"
+#include "least_square_problem.h"
 #include "solver.h"
 
 
@@ -19,7 +20,7 @@ public:
             weight_start << 1e-2, 1e3, 1e3, 1e3, 1e4, 1e-3, 1e-3;
             weight_end << 0., 1e3, 1e3, 1e3, 1e4, 1e3, 1e3; 
         }
-        uint32_t iterations = 10;
+        uint32_t iterations = 20;
 
         double update_step_size = 0.5;
 
@@ -39,19 +40,24 @@ public:
         initialize_trajectory();
     }
 
+    // Least squares framework
+    // 1. f(x) ~= J dx + b
+    // 2. solve normal equation
+    // 3. update x.
     void solve()
     {
         // print_variables();
 
         for(size_t i = 0; i < config_.iterations; ++i)
         {
-            const RocketLandingResiduals residuals = compute_residaul(trajectory_, 
+            RocketLandingProblem problem;
+            problem.residuals = compute_residaul(trajectory_, 
                 start_state_, config_.weight_start, end_state_, config_.weight_end, num_states_);
-            const VectorXd delta = solve_least_squares(residuals);
+            const VectorXd delta = solve_least_squares(problem.residuals);
 
             // update_variables(delta, config_.update_step_size);
             
-            bool stop = back_tracking_line_search_and_update(residuals, delta);
+            bool stop = back_tracking_line_search_and_update(problem.residuals, delta);
 
             if(stop)
             {
@@ -59,10 +65,10 @@ public:
                 break;
             }
 
-            print_variables();
+            // print_variables();
         }
 
-        print_variables();
+        // print_variables();
     }
 
     void print_variables() const
@@ -201,9 +207,7 @@ protected:
     // variables
     Trajectory trajectory_;
 
-    // all residuals, it almost defines the optimization problem
-    RocketLandingResiduals residuals_;
-
+    // Prior data
     RocketState start_state_;
     RocketState end_state_;
     int num_states_ = -1;

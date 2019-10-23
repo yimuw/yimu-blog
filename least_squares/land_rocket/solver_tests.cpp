@@ -7,6 +7,7 @@ Tests to develop solvers
 // TODO: expicit includes
 #include "solver.h"
 #include "rocket_landing_planner.h"
+#include "least_square_problem.h"
 #include "utils.h"
 
 
