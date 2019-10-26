@@ -38,10 +38,14 @@ public:
     using RocketLandingPlanner::RocketLandingPlanner;
     
     // test protected functions
-    RocketLandingResiduals TEST_compute_residaul()
+    RocketLandingProblem TEST_get_problem()
     {
-        return compute_residaul(trajectory_, 
-                start_state_, config_.weight_start, end_state_, config_.weight_end, num_states_);
+        return problem_;
+    }
+
+    Config TEST_get_config()
+    {
+        return config_;
     }
 };
 
@@ -52,7 +56,7 @@ RocketLandingResiduals generate_data()
     int steps = 20;
 
     Test_RocketLandingPlanner rocket_landing(start_state, end_state, steps);
-    RocketLandingResiduals r = rocket_landing.TEST_compute_residaul();
+    RocketLandingResiduals r = rocket_landing.TEST_get_problem().residuals;
     
     return r;
 }
@@ -79,54 +83,76 @@ void test_solvers()
     test_matrix_almost_equation(sparse_delta, delta_dense);
 }
 
-// No a good test
-void test_residual()
+
+struct TEST_RocketLandingSolver_PrimalDualInteriorPoint : public RocketLandingSolver_PrimalDualInteriorPoint
 {
-    RocketState s1(1, 1, 1, 1, 1, 1, 1);
-    RocketState s2(2, 2, 2, 2, 2, 2, 2);
-
-    const Vector7d weight = 3. * Vector7d::Ones();
-
-    Trajectory trajectory;
-
-    trajectory.states = {s1 , s2};
-    s1.delta_time() += 1.23;
-
-    const RocketLandingResiduals residuals = compute_residaul(trajectory, 
-                s1, weight, s2, weight, 2);
-    
-    const double cost_pred = residuals.total_cost();
-
-    auto s2_pred = RocketMotionModel().motion(trajectory.states.at(0));
-    const Vector7d diff = s2_pred.variables - trajectory.states.at(1).variables;
-
-    const double t_reg = residuals.time_regularization;
-    const double v_reg = residuals.velocity_regularization;
-    const double a_reg = residuals.acceleration_regularization;
-    const double r_reg = residuals.turning_rate_regularization;
-
-    auto reg_compute = [&](const RocketState &s)
+    void cost_gradient_checking(const Config &config,
+                                RocketLandingProblem &problem)
     {
-        return t_reg * s.delta_time() * s.delta_time()
-            +  v_reg * s.velocity() * s.velocity()
-            +  a_reg * s.acceleration() * s.acceleration()
-            +  r_reg * s.turning_rate() * s.turning_rate();
-    };
+        config_ = config;
 
-    MatrixXd W = residuals.motion_residuals[0].weight();
-    const double cost_gt = diff.transpose() * W * diff + 1.23 * 1.23 * 3.
-        + reg_compute(trajectory.states.at(0)) + reg_compute(trajectory.states.at(1));
-    PRINT_NAME_VAR(cost_gt);
-    PRINT_NAME_VAR(cost_pred);
-    assert(std::abs(cost_gt - cost_pred) < 1e-8 && "cost checking failed");
-    std::cout << "test_residual passed" << std::endl;
+        num_states_ = problem.trajectory.states.size();
+        num_primal_variables_ = problem.trajectory.states.size() * RocketState::STATE_SIZE;
+        num_dual_variables_ = problem.constrains.linear_constrains.size();
+
+        problem.update_problem();
+
+        print_variables(problem.trajectory);
+        const auto trajectory_cur = problem.trajectory;
+
+        VectorXd cost_grad_nu(num_primal_variables_);
+
+        auto compute_cost = [&](const Trajectory &t)
+        {
+            auto residuals = compute_residaul(t, 
+                problem.start_state, config.weight_start, problem.end_state, 
+                config.weight_end, config.num_states);
+            return residuals.total_cost();
+        };
+
+        for(size_t state_i = 0; state_i < trajectory_cur.states.size(); ++state_i)
+        {
+            for(size_t var_i = 0; var_i < RocketState::STATE_SIZE; ++var_i)
+            {
+                constexpr double EPSILON = 1e-8;
+                auto t_plus = trajectory_cur;
+                t_plus.states.at(state_i).variables(var_i) += EPSILON;
+                auto t_minus = trajectory_cur;
+                t_minus.states.at(state_i).variables(var_i) -= EPSILON;
+
+                const double grad = (compute_cost(t_plus) - compute_cost(t_minus)) / (2 * EPSILON);
+                cost_grad_nu(state_i * RocketState::STATE_SIZE + var_i) = grad;
+            }
+        }
+
+        NormalEqution normal_equ = residual_function_to_normal_equation(problem.residuals);
+        VectorXd cost_grad_analytic = compute_cost_gradient(normal_equ, problem.trajectory, problem.residuals);
+        PRINT_NAME_VAR(problem.residuals.total_cost());
+        PRINT_NAME_VAR(cost_grad_analytic.transpose());
+        PRINT_NAME_VAR(cost_grad_nu.transpose());
+    }
+};
+
+void cost_gradient_checking()
+{
+    RocketState start_state(1., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6);
+    RocketState end_state(1., 1., 0.5, 0.1, 0., 0., 0.);
+
+    int steps = 2;
+    Test_RocketLandingPlanner tester_landing(start_state, end_state, steps);
+
+    TEST_RocketLandingSolver_PrimalDualInteriorPoint tester_solver;
+    auto problem_for_test = tester_landing.TEST_get_problem();
+    tester_solver.cost_gradient_checking(tester_landing.TEST_get_config(), problem_for_test);
 }
 
 int main(int argc, char *argv[])
 {
+    std::cout << "test_solvers =========================================" << std::endl;
     test_solvers();
 
-    test_residual();
+    std::cout << "cost_gradient_checking =========================================" << std::endl;
+    cost_gradient_checking();
 
     return 0;
 }

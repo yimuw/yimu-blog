@@ -7,9 +7,9 @@
 int main(int argc, char *argv[])
 {
     // //  dt, x, y, vel, heading, turn_rate, accl
-    RocketState start_state(1., 0., 0., 0., 0., 0., 0.);
-    RocketState end_state(1., 100., 100., 0., 0., 0., 0.);
-    int steps = 200;
+    int steps = 50;
+    RocketState start_state(0.1, 0., 0., 1., 0., 0., 0.);
+    RocketState end_state(0.1, 10., 2., 2., 0., 0., 0.1);
 
     RocketLandingPlanner rocket_landing(start_state, end_state, steps);
     rocket_landing.solve();

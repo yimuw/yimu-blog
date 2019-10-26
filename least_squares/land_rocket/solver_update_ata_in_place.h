@@ -15,8 +15,8 @@ class DenseSolverUpdateInPlace : public DenseSolver
 public:
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
     {
-        NormalEqution normal_equ = residual_function_to_quadratic(residual);
-        apply_regularization(residual, normal_equ);
+        NormalEqution normal_equ = residual_function_to_normal_equation(residual);
+        apply_regularization_to_hessian(residual, normal_equ);
         return solve_normal_eqution(normal_equ);
     }
 
@@ -28,9 +28,9 @@ protected:
                                     int &residual_idx,
                                     NormalEqution &equ)
     {
-        const MatrixXd jocobi = residual.jacobian();
+        const MatrixXd jacobi = residual.jacobian();
         const MatrixXd weight = residual.weight();
-        MatrixXd jtw = jocobi.transpose();
+        MatrixXd jtw = jacobi.transpose();
         if(residual.is_diagnal_weight())
         {
             for(int c = 0; c < jtw.cols(); ++c)
@@ -48,7 +48,7 @@ protected:
         assert(v_start_idx + v_size <= equ.lhs.rows());
         assert(equ.lhs.rows() == equ.lhs.cols());
         
-        equ.lhs.block(v_start_idx, v_start_idx, v_size, v_size) += jtw * jocobi;
+        equ.lhs.block(v_start_idx, v_start_idx, v_size, v_size) += jtw * jacobi;
         equ.rhs.segment(v_start_idx, v_size) += - jtw * residual.residual();
 
         if(false)
@@ -61,7 +61,7 @@ protected:
         residual_idx += residual.residual_size();
     }
 
-    NormalEqution residual_function_to_quadratic(const RocketLandingResiduals &residual)
+    NormalEqution residual_function_to_normal_equation(const RocketLandingResiduals &residual)
     {
         std::cout << "Constructing sparse system..." << std::endl;
         const int num_variables = residual.total_variable_size();

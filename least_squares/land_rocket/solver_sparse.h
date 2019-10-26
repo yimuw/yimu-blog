@@ -18,41 +18,47 @@ class SparseSolver : public DenseSolverUpdateInPlace
 public:
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
     {
-        NormalEqution normal_equ = residual_function_to_quadratic(residual);
-        apply_regularization(residual, normal_equ);
+        NormalEqution normal_equ = residual_function_to_normal_equation(residual);
+        apply_regularization_to_hessian(residual, normal_equ);
         return solve_normal_eqution(normal_equ);
     }
 
 protected:
-    virtual VectorXd solve_normal_eqution(NormalEqution &quadratic) override
+    virtual VectorXd solve_normal_eqution(NormalEqution &normal_equ) override
     {
-        return solve_normal_eqution_cholmod(quadratic);
+#ifdef CHOLMOD_SUPPORT
+        // Cholesky for A.T * A system
+        return solve_normal_eqution_sparse<Eigen::CholmodSupernodalLLT<Eigen::SparseMatrix<double>>>(normal_equ);
+#else
+        return solve_normal_eqution_sparse<Eigen::SparseLU<Eigen::SparseMatrix<double>>>(normal_equ);
+#endif
     }
 
-    VectorXd solve_normal_eqution_cholmod(NormalEqution &quadratic)
+    template<typename SOLVE_TYPE>
+    VectorXd solve_normal_eqution_sparse(NormalEqution &normal_equ)
     {
         std::cout << "Creating SparseView..." << std::endl;
         // TODO: Can't find good doc for sparseView()
         const double reference = 1e-4;
         const double epsilon = 1e-6;
-        Eigen::SparseMatrix<double> sparse_lhs = quadratic.lhs.sparseView(reference, epsilon);
-        VectorXd &rhs = quadratic.rhs;
+        Eigen::SparseMatrix<double> sparse_lhs = normal_equ.lhs.sparseView(reference, epsilon);
+        VectorXd &rhs = normal_equ.rhs;
 
-        Eigen::CholmodSupernodalLLT<Eigen::SparseMatrix<double>> cholmod_solver;
+        SOLVE_TYPE solver;
 
-        std::cout << "Cholmod Cholesky..." << std::endl;
-        cholmod_solver.compute(sparse_lhs);
+        std::cout << "Decomposing..." << std::endl;
+        solver.compute(sparse_lhs);
 
-        if(cholmod_solver.info()!=Eigen::Success) 
+        if(solver.info()!=Eigen::Success) 
         {
-            assert(false && "Cholmod decompose failed");
+            assert(false && "Decompose failed");
         }
 
         std::cout << "Back sub..." << std::endl;
-        Eigen::VectorXd delta = cholmod_solver.solve(rhs);
-        if(cholmod_solver.info()!=Eigen::Success) 
+        Eigen::VectorXd delta = solver.solve(rhs);
+        if(solver.info()!=Eigen::Success) 
         {
-            assert(false && "Cholmod back sub failed");
+            assert(false && "Back sub failed");
         }
 
         return delta;

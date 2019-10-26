@@ -61,7 +61,7 @@ public:
     {
         const LinearizedResidual linearized_residuals = linearized_residual_function(residual);
         NormalEqution normal_equ = linear_function_to_normal_equation(linearized_residuals);
-        apply_regularization(residual, normal_equ);
+        apply_regularization_to_hessian(residual, normal_equ);
         return solve_normal_eqution(normal_equ);
     }
 
@@ -123,7 +123,7 @@ protected:
 
     // basically, cost = ||Ax||^2 + k*||x||^2
     //            hessian_of_cost = A^*A + k*I
-    void apply_regularization(
+    void apply_regularization_to_hessian(
                         const RocketLandingResiduals &residual,
                         NormalEqution &normal_equation)
     {
@@ -138,7 +138,7 @@ protected:
             for(int state_i = 0; state_i < residual.num_rocket_states; ++state_i)
             {
                 const int var_idx = state_i * RocketState::STATE_SIZE + reg_idx;
-                normal_equation.lhs(var_idx, var_idx) += regularization;
+                normal_equation.lhs(var_idx, var_idx) += 2 * regularization;
             }
         };
 
