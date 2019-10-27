@@ -14,8 +14,11 @@ void print_variables(Trajectory trajectory, bool with_prediction = false)
     {
         std::cout << "state " << state_i << " :" 
             << trajectory.states.at(state_i).variables.transpose() << std::endl;
-        std::cout << "pred  " << state_i << " :" 
-            << RocketMotionModel().motion(trajectory.states.at(state_i)).variables.transpose() << std::endl;
+        if(with_prediction)
+        {
+            std::cout << "pred  " << state_i << " :" 
+                << RocketMotionModel().motion(trajectory.states.at(state_i)).variables.transpose() << std::endl;
+        }
     }
 }
 

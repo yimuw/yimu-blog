@@ -148,12 +148,6 @@ protected:
             set_regularization_func(residual.time_regularization, RocketState::i_dt);
         }
 
-        if(residual.velocity_regularization > 0)
-        {
-            std::cout << "residual.velocity_regularization: " << residual.velocity_regularization << std::endl;
-            set_regularization_func(residual.velocity_regularization, RocketState::i_velocity);
-        }
-
         if(residual.acceleration_regularization > 0)
         {
             std::cout << "residual.acceleration_regularization: " << residual.acceleration_regularization << std::endl;

@@ -7,8 +7,8 @@
 using MatrixXd = Eigen::MatrixXd;
 using VectorXd = Eigen::VectorXd;
 using Vector2d = Eigen::Vector2d;
-using Vector7d = Eigen::Matrix<double, 7, 1>;
-using Matrix7d = Eigen::Matrix<double, 7, 7>;
+using Vector8d = Eigen::Matrix<double, 8, 1>;
+using Matrix8d = Eigen::Matrix<double, 8, 8>;
 using TimeStamp = double;
 using TimeDuration = double;
 
@@ -22,7 +22,8 @@ struct RocketState
         i_dt = 0,
         i_position_x,
         i_position_y,
-        i_velocity,
+        i_velocity_x,
+        i_velocity_y,
         i_heading,
         i_turning_rate,
         i_acceleration,
@@ -30,14 +31,15 @@ struct RocketState
     };
 
     explicit RocketState(const double dt,
-                const double px,
-                const double py,
-                const double vel,
-                const double heading,
-                const double turning_rate,
-                const double acceleration)
+                         const double px,
+                         const double py,
+                         const double vel_x,
+                         const double vel_y,
+                         const double heading,
+                         const double turning_rate,
+                         const double acceleration)
     {
-        variables << dt, px, py, vel, heading, turning_rate, acceleration;
+        variables << dt, px, py, vel_x, vel_y, heading, turning_rate, acceleration;
     }
 
     RocketState()
@@ -60,9 +62,9 @@ struct RocketState
         return Eigen::Map<Vector2d>(variables.data() + i_position_x);
     }
 
-    double& velocity()
+    Eigen::Map<Vector2d> velocity()
     {
-        return variables[i_velocity];
+        return Eigen::Map<Vector2d>(variables.data() + i_velocity_x);
     }
 
     double& heading()
@@ -91,9 +93,9 @@ struct RocketState
         return {variables(i_position_x), variables(i_position_y)};
     }
 
-    const double& velocity() const
+    Vector2d velocity() const
     {
-        return variables[i_velocity];
+        return {variables(i_velocity_x), variables(i_velocity_y)};
     }
 
     const double& heading() const
@@ -111,7 +113,7 @@ struct RocketState
         return variables[i_acceleration];
     }
 
-    Vector7d variables = Vector7d::Zero();
+    Vector8d variables = Vector8d::Zero();
 };
 
 struct Trajectory

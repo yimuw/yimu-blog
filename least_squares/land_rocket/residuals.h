@@ -3,6 +3,8 @@
 #include "types.h"
 
 
+constexpr double GRAVITY = 1.;
+
 struct RocketMotionModel
 {
     RocketState motion(const RocketState &state_in) const
@@ -12,12 +14,12 @@ struct RocketMotionModel
         RocketState next_state = state;
 
         const double dt = state.delta_time();
-        next_state.velocity() = state.velocity() + dt * state.acceleration();
+        const double theta = state.heading();
+        next_state.velocity() = state.velocity() + dt * Vector2d(std::cos(theta) * state.acceleration(), 
+                                                                 std::sin(theta) * state.acceleration() - GRAVITY);
         next_state.heading() = state.heading() + dt * state.turning_rate();
 
-        const double theta = state.heading();
-        next_state.position() = state.position() + dt * Vector2d(std::cos(theta) * state.velocity(), 
-                                                                 std::sin(theta) * state.velocity()); 
+        next_state.position() = state.position() + dt * state.velocity(); 
 
         return next_state;
     }
@@ -28,21 +30,29 @@ struct RocketMotionModel
         const int residual_size = RocketState::STATE_SIZE;
         MatrixXd jacobi_wrt_s = MatrixXd::Identity(residual_size, residual_size);
         
-        const double h1 = state_in.heading();
-        const double dt1 = state_in.delta_time();
+        const double h = state_in.heading();
+        const double sin_h = std::sin(h);
+        const double cos_h = std::cos(h);
+        const double dt = state_in.delta_time();
+        const double vx = state_in.velocity().x();
+        const double vy = state_in.velocity().y();
+        const double acc = state_in.acceleration();
 
-        jacobi_wrt_s(S::i_position_x, S::i_heading) = - dt1 * std::sin(h1) * state_in.velocity();
-        jacobi_wrt_s(S::i_position_x, S::i_velocity) = dt1 * std::cos(h1);
-        jacobi_wrt_s(S::i_position_x, S::i_dt) = std::cos(h1) * state_in.velocity();
+        jacobi_wrt_s(S::i_position_x, S::i_velocity_x) = dt;
+        jacobi_wrt_s(S::i_position_x, S::i_dt) = vx;
 
-        jacobi_wrt_s(S::i_position_y, S::i_heading) = dt1 * std::cos(h1) * state_in.velocity();
-        jacobi_wrt_s(S::i_position_y, S::i_velocity) = dt1 * std::sin(h1);
-        jacobi_wrt_s(S::i_position_y, S::i_dt) = std::sin(h1) * state_in.velocity();
+        jacobi_wrt_s(S::i_position_y, S::i_velocity_y) = dt;
+        jacobi_wrt_s(S::i_position_y, S::i_dt) = vy;
 
-        jacobi_wrt_s(S::i_velocity, S::i_acceleration) = dt1;
-        jacobi_wrt_s(S::i_velocity, S::i_dt) = state_in.acceleration();
+        jacobi_wrt_s(S::i_velocity_x, S::i_acceleration) = dt * cos_h;
+        jacobi_wrt_s(S::i_velocity_x, S::i_heading) = - dt * sin_h * acc;
+        jacobi_wrt_s(S::i_velocity_x, S::i_dt) = cos_h * acc;
 
-        jacobi_wrt_s(S::i_heading, S::i_turning_rate) = dt1;
+        jacobi_wrt_s(S::i_velocity_y, S::i_acceleration) = dt * sin_h;
+        jacobi_wrt_s(S::i_velocity_y, S::i_heading) = dt * cos_h * acc;
+        jacobi_wrt_s(S::i_velocity_y, S::i_dt) = sin_h * acc - GRAVITY;
+
+        jacobi_wrt_s(S::i_heading, S::i_turning_rate) = dt;
         jacobi_wrt_s(S::i_heading, S::i_dt) = state_in.turning_rate();
         
         return jacobi_wrt_s;
@@ -53,13 +63,13 @@ struct RocketMotionModel
     void jacobian_checking_simple(const RocketState &state) const
     {
         constexpr double EPSILON = 1e-1;
-        Vector7d delta = EPSILON * Vector7d::Ones();
+        Vector8d delta = EPSILON * Vector8d::Ones();
         MatrixXd jacobi = jocobian_wrt_state(state);
 
         RocketState state_pred;
         state_pred.variables = state.variables + delta;
-        const Vector7d state_gt = motion(state_pred).variables;
-        const Vector7d state_linearized = state.variables + jacobi * delta;
+        const Vector8d state_gt = motion(state_pred).variables;
+        const Vector8d state_linearized = state.variables + jacobi * delta;
 
         std::cout << "state_gt - state_linearized: " << state_gt - state_linearized << std::endl;
         std::cout << "EPSILON: " << EPSILON << std::endl;
@@ -131,7 +141,7 @@ struct MotionResidual : public Residual
         // RocketMotionModel().jacobian_checking_simple(state1);
 
         RocketState state2_pred = RocketMotionModel().motion(state1);
-        Vector7d r = state2_pred.variables - state2.variables;
+        Vector8d r = state2_pred.variables - state2.variables;
 
         return r;
     }
@@ -155,13 +165,12 @@ struct MotionResidual : public Residual
     MatrixXd weight() const override
     {
         const int residual_size = state1.variable_size();
-        Vector7d weight_diag;
+        Vector8d weight_diag;
 
-        //  dt, x, y, vel, heading, turn_rate, accl
-        weight_diag << 1e2, 1e3, 1e3, 1e4, 1e4, 1e1, 1e1;
-        // weight_diag = Vector7d::Ones();
+        //  dt, x, y, vel_x, vel_y, heading, turn_rate, accl
+        weight_diag << 1e3, 1e3, 1e3, 1e4, 1e4, 1e5, 1e2, 1e1;
 
-        Matrix7d weight = MatrixXd::Identity(residual_size, residual_size);
+        Matrix8d weight = MatrixXd::Identity(residual_size, residual_size);
         weight.diagonal() << weight_scale * weight_diag;
 
         return weight;
@@ -187,7 +196,7 @@ struct PriorResidual : public Residual
     PriorResidual(const RocketState &s, 
                   const int s_idx, 
                   const RocketState &p,
-                  const Vector7d &w)
+                  const Vector8d &w)
         : state_index(s_idx), state(s), prior(p), weight_vec(w)
     {}
 
@@ -202,14 +211,14 @@ struct PriorResidual : public Residual
     // r(x1, x2) = m(x1) - x2
     VectorXd residual() const override
     {
-        Vector7d r = state.variables - prior.variables;
+        Vector8d r = state.variables - prior.variables;
         return r;
     }
 
     MatrixXd weight() const override
     {
         const int state_size = RocketState::STATE_SIZE;
-        Matrix7d weight_mat = MatrixXd::Zero(state_size, state_size);
+        Matrix8d weight_mat = MatrixXd::Zero(state_size, state_size);
         assert(weight_vec.rows() == state_size);
         weight_mat.diagonal() = weight_vec;
 
@@ -240,7 +249,7 @@ struct PriorResidual : public Residual
     RocketState state;
 
     RocketState prior;
-    Vector7d weight_vec = Vector7d::Ones();
+    Vector8d weight_vec = Vector8d::Ones();
 };
 
 

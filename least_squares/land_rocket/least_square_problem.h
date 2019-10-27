@@ -46,14 +46,11 @@ struct RocketLandingResiduals
             double cost = 0.;
 
             const double dt1 = s.delta_time();
-            const double vel1 = s.velocity();
             const double acc1 = s.acceleration();
             const double tr1 = s.turning_rate();
 
             if(residuals.time_regularization > 0)
                 cost += residuals.time_regularization * dt1 * dt1;
-            if(residuals.velocity_regularization > 0)
-                cost += residuals.velocity_regularization * vel1 * vel1;
             if(residuals.acceleration_regularization > 0)
                 cost += residuals.acceleration_regularization * acc1 * acc1;
             if(residuals.turning_rate_regularization > 0)
@@ -90,8 +87,6 @@ struct RocketLandingResiduals
     // since it is simple & efficient.
     double time_regularization = 0.;
 
-    double velocity_regularization = 0.;
-
     double acceleration_regularization = 0.;
 
     double turning_rate_regularization = 0.;
@@ -100,9 +95,9 @@ struct RocketLandingResiduals
 
 RocketLandingResiduals compute_residaul(const Trajectory &trajectory,
                                         const RocketState &start_state,
-                                        const Vector7d &weight_start,
+                                        const Vector8d &weight_start,
                                         const RocketState &end_state,
-                                        const Vector7d &weight_end,
+                                        const Vector8d &weight_end,
                                         const int num_states)
 {
     assert(num_states >= 2);
@@ -122,10 +117,9 @@ RocketLandingResiduals compute_residaul(const Trajectory &trajectory,
         num_states - 1, end_state, weight_end);
 
     residuals.num_rocket_states = num_states;
-    residuals.time_regularization = 0.1;
-    residuals.velocity_regularization = 0.0;
-    residuals.acceleration_regularization = 0.05;
-    residuals.turning_rate_regularization = 0.05;
+    residuals.time_regularization = 1e-3;
+    residuals.acceleration_regularization = 1e-3;
+    residuals.turning_rate_regularization = 1e0;
 
     return residuals;
 }
@@ -176,8 +170,8 @@ struct Constrains
         {
             if(s.acceleration() < min_acceleration 
                 or s.delta_time() < min_dt
-                //or s.position().x() < min_position_x 
-                //or s.position().y() < min_position_y
+                or s.position().x() < min_position_x 
+                or s.position().y() < min_position_y
                 )
             {
                 return false;
@@ -194,9 +188,9 @@ struct Constrains
         {
             const RocketState &state = trajectory.states[si];
             using S = RocketState;
-            // // s.x > 0 =>  h(x) = x - k < 0 => x = - s.x, k = 0
-            // linear_constrains.emplace_back(si, S::i_position_x, state.position().x(), min_position_x);
-            // linear_constrains.emplace_back(si, S::i_position_y, state.position().y(), min_position_y);
+            // s.x > 0 =>  h(x) = x - k < 0 => x = - s.x, k = 0
+            linear_constrains.emplace_back(si, S::i_position_x, state.position().x(), min_position_x);
+            linear_constrains.emplace_back(si, S::i_position_y, state.position().y(), min_position_y);
             // s.a > 0 => x = - s.a, k = 0
             linear_constrains.emplace_back(si, S::i_acceleration, state.acceleration(), min_acceleration);
             linear_constrains.emplace_back(si, S::i_dt, state.delta_time(), min_dt);
@@ -205,9 +199,6 @@ struct Constrains
 
     std::vector<LinearConstrain1D> linear_constrains;
 
-    // TODO: primal-dual >= or > ?
-    const double epsilon = 1e-4;
-
     // Rocket shoudn't hit ground
     double min_position_x = 0.;
     double min_position_y = 0.;
@@ -215,7 +206,7 @@ struct Constrains
     // Acceleration is positive
     double min_acceleration = 0.;
     // dt is positive
-    double min_dt = 0. + epsilon;
+    double min_dt = 1e-4;
 };
 
 
@@ -223,19 +214,16 @@ struct Config
 {
     Config()
     {
-        weight_start << 1e-2, 1e3, 1e3, 1e3, 1e4, 1e-3, 1e-3;
-        weight_end << 0., 1e3, 1e3, 1e3, 1e4, 1e3, 1e3; 
-
-        // weight_start = Vector7d::Ones();
-        // weight_end = Vector7d::Ones();
+        weight_start << 1e4, 1e3, 1e3, 1e3, 1e3, 1e4, 1e4, 1e4;
+        weight_end   << 1e4, 1e3, 1e3, 1e3, 1e3, 1e4, 1e4, 1e4;
     }
     uint32_t iterations = 20;
 
     double update_step_size = 0.5;
 
-    Vector7d weight_start = Vector7d::Zero();
+    Vector8d weight_start = Vector8d::Zero();
     
-    Vector7d weight_end = Vector7d::Zero();
+    Vector8d weight_end = Vector8d::Zero();
 
     int num_states = -1;
 };

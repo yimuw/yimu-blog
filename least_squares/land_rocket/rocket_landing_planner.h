@@ -45,10 +45,10 @@ public:
         const Vector2d delta_p = dp / (config_.num_states - 1.);
         
         const double heading_guess = atan2(dp.y(), dp.x());
-        const double velocity_guess = 0.;
         const double accel_guess = 0.;
         const double turning_rate_guess = 0.;
-        const double dt_guess = 1.;
+        const double dt_guess = start_state_.delta_time();
+        const Vector2d velocity_guess = delta_p / dt_guess;
 
         for(int i = 0; i < config_.num_states; ++i)
         {

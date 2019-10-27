@@ -34,7 +34,7 @@ public:
 
         print_variables(problem.trajectory, true);
 
-        constexpr int MAX_ITERATIONS = 30;
+        constexpr int MAX_ITERATIONS = 100;
         for(int iter = 0; iter < MAX_ITERATIONS; ++iter)
         {
             problem.update_problem();
@@ -62,9 +62,11 @@ public:
             if(status == false)
             {
                 std::cerr << "update failed at iter: " << iter << std::endl;
+                std::cout << "update failed at iter: " << iter << std::endl;
+                break;
             }
 
-            // print_variables(problem.trajectory);
+            print_variables(problem.trajectory);
 
             PRINT_NAME_VAR(problem.residuals.total_cost());
             PRINT_NAME_VAR(problem.residuals.prior_cost());
@@ -132,11 +134,6 @@ protected:
             set_regularization_func(residuals.time_regularization, RocketState::i_dt);
         }
 
-        if(residuals.velocity_regularization > 0)
-        {
-            set_regularization_func(residuals.velocity_regularization, RocketState::i_velocity);
-        }
-
         if(residuals.acceleration_regularization > 0)
         {
             set_regularization_func(residuals.acceleration_regularization, RocketState::i_acceleration);
@@ -162,16 +159,28 @@ protected:
         const int augmented_var_size =  num_variables + num_constrains;
 
         NormalEqution augmented_normal_equ(augmented_var_size);
-        MatrixXd &relaxed_kkt_lhs = augmented_normal_equ.lhs;
-        VectorXd &relaxed_kkt_rhs = augmented_normal_equ.rhs;
+        augmented_normal_equ.lhs = construct_primal_dual_problem_lhs(
+            cost_hessian, dual_variables, constrains);
+        augmented_normal_equ.rhs = construct_primal_dual_problem_rhs(
+            cost_gradient, dual_variables, constrains, k_relax_complementary_slackness);
+
+        return augmented_normal_equ;
+    }
+
+        // Solve for KKT: (Stationarity, Complementary slackness)
+    MatrixXd construct_primal_dual_problem_lhs(const MatrixXd &cost_hessian,
+                                                const VectorXd &dual_variables, 
+                                                const Constrains &constrains)
+    {
+        const int num_variables = cost_hessian.rows();
+        const int num_constrains = constrains.linear_constrains.size();
+        const int augmented_var_size =  num_variables + num_constrains;
+
+        MatrixXd relaxed_kkt_lhs = MatrixXd::Zero(augmented_var_size, augmented_var_size);
 
         // Copy primal equation
-        relaxed_kkt_lhs = MatrixXd::Identity(augmented_var_size, augmented_var_size);
         relaxed_kkt_lhs.block(0, 0, num_variables, num_variables) = cost_hessian;
 
-        // relaxed_kkt_rhs.block(0, 0, num_variables, 1) = normal_equ.rhs;
-        relaxed_kkt_rhs.segment(0, num_variables) = cost_gradient;
-        
         // Not general, simplified for 1d linear case.
         for(size_t constrain_idx = 0; constrain_idx < constrains.linear_constrains.size(); ++constrain_idx)
         {
@@ -190,18 +199,40 @@ protected:
                 = - dual_variables[constrain_idx] * constrain_linear.jacobian();
             // lower right block
             relaxed_kkt_lhs(dual_var_index, dual_var_index) = - constrain_linear.h();
+        }
+
+        return relaxed_kkt_lhs;
+    }
+
+    VectorXd construct_primal_dual_problem_rhs(const VectorXd &cost_gradient,
+                                            const VectorXd &dual_variables, 
+                                            const Constrains &constrains,
+                                            const double k_relax_complementary_slackness)
+    {
+        const int num_variables = cost_gradient.rows();
+        const int num_constrains = constrains.linear_constrains.size();
+        const int augmented_var_size =  num_variables + num_constrains;
+        VectorXd relaxed_kkt_rhs = VectorXd::Zero(augmented_var_size);
+
+        // relaxed_kkt_rhs.block(0, 0, num_variables, 1) = normal_equ.rhs;
+        relaxed_kkt_rhs.segment(0, num_variables) = -cost_gradient;
+        
+        // Not general, simplified for 1d linear case.
+        for(size_t constrain_idx = 0; constrain_idx < constrains.linear_constrains.size(); ++constrain_idx)
+        {
+            const auto &constrain_linear = constrains.linear_constrains[constrain_idx];
+            const int correspond_primal_index = constrain_linear.state_index * RocketState::STATE_SIZE 
+                + constrain_linear.type_index;
+            const int dual_var_index = num_variables + constrain_idx;
 
             // Dual residual: KKT Stationarity
-            relaxed_kkt_rhs(correspond_primal_index) +=  dual_variables[constrain_idx] * constrain_linear.jacobian();
+            relaxed_kkt_rhs(correspond_primal_index) -=  dual_variables[constrain_idx] * constrain_linear.jacobian();
             // Cent residual: KKT relaxed complementary slackness
-            relaxed_kkt_rhs(dual_var_index) =  - dual_variables[constrain_idx] * constrain_linear.h() 
+            relaxed_kkt_rhs(dual_var_index) -= - dual_variables[constrain_idx] * constrain_linear.h() 
                 - 1. / k_relax_complementary_slackness;
         }
 
-        // Just a convension
-        relaxed_kkt_rhs *= -1;
-
-        return augmented_normal_equ;
+        return relaxed_kkt_rhs;
     }
 
     bool dual_feasible(const VectorXd &dual_variables,
@@ -237,6 +268,8 @@ protected:
         {
             const RocketLandingResiduals updated_residuals = compute_residaul(trajectory, 
                 problem.start_state, config_.weight_start, problem.end_state, config_.weight_end, num_states_);
+            
+            // TODO: I should use primal-dual cost here. But it is expensive.
             updated_cost = updated_residuals.total_cost();
             
             // Back tracking for value decrase
@@ -259,7 +292,7 @@ protected:
         const VectorXd primal_step = delta_primal_daul.segment(0, num_primal_variables_);
         const VectorXd dual_step = delta_primal_daul.segment(num_primal_variables_, num_dual_variables_);
 
-        for(double step_size = 1.; step_size > 1e-3; step_size *= back_tracking_scale_)
+        for(double step_size = 1.; step_size > 1e-2; step_size *= back_tracking_scale_)
         {
             if(dual_feasible_status == false)
             {
@@ -274,6 +307,9 @@ protected:
             }
             
             PrimalVariables updated_primal_vars = update_primal_variables(primal_step, step_size, problem.trajectory);
+
+            // TODO: update check_cost_deacrease to use primal-dual cost
+            final_line_search_step = step_size;
 
             if(primal_feasible_status == false)
             {
@@ -308,7 +344,7 @@ protected:
         PRINT_NAME_VAR(search_success);
         PRINT_NAME_VAR(final_line_search_step);
 
-        return search_success;
+        return true;
     }
 
     double compute_surrogate_duality_gap(const Constrains &constrains,

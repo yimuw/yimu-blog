@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.0)
 set(CMAKE_CXX_STANDARD 14)
 # enable gdb
 set(CMAKE_BUILD_TYPE Debug)
-add_definitions(-g -Wall)
+add_definitions(-g -Wall -O2)
 
 project(rocket-landing)
 
@@ -22,10 +22,10 @@ target_link_libraries(rocket_landing
                       cholmod)
 
 
-add_executable(test_rocket_landing_solver 
-               solver_tests.cpp)
-target_link_libraries(test_rocket_landing_solver 
-                      cholmod)
+#add_executable(tests
+#               tests.cpp)
+#target_link_libraries(tests 
+#                      cholmod)
 
 
 
