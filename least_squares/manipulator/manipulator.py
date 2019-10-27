@@ -16,7 +16,7 @@ def SO2_log(R):
 def vee(l1):
     assert(l1.size == 2)
     a, b = l1
-    return np.array([b, -a])
+    return np.array([-b, a])
 
 
 class ManipulatorOptimization:
@@ -42,9 +42,9 @@ class ManipulatorOptimization:
     def end_effector_position_jacobi_wrt_theta(self):
         jacobi = np.zeros([2, 2])
         # dr / d w1
-        jacobi[:, 0] = - self.R1 @ vee(self.l1) - self.R1 @ vee(self.R2 @ self.l2)
+        jacobi[:, 0] = self.R1 @ vee(self.l1) + self.R1 @ vee(self.R2 @ self.l2)
         # dr / d w2
-        jacobi[:, 1] = - self.R1 @ self.R2 @ vee(self.l2)
+        jacobi[:, 1] = self.R1 @ self.R2 @ vee(self.l2)
         return jacobi
 
     def gradient_checking(self):
