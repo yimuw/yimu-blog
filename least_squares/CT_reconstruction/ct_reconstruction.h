@@ -29,7 +29,7 @@ public:
     
     cv::Mat generate_small_im()
     {
-        constexpr int im_size = 30;
+        constexpr int im_size = 50;
 
         cv::Mat image(im_size,im_size, CV_32F, cv::Scalar(0.));
 
