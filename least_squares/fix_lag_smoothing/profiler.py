@@ -19,4 +19,4 @@ def time_it(func):
 
 def print_time_map():
     for k, v in time_map.items():
-        print('{}: mean time: {},  # called: {}'.format(k, np.mean(v), len(v)))
+        print('{}: mean time: {},  # called: {}, max: {}'.format(k, np.mean(v), len(v), max(v)))
