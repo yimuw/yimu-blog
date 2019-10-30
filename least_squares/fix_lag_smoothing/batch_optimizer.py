@@ -36,17 +36,17 @@ class BatchOptimization:
         residual[residual_index:residual_index + pm.residual_size()] = pm.residual()
         residual_index += pm.residual_size()
 
-        # No distance residual for the last state
-        for state_index in range(self.num_states - 1):
-            state1_idx = state_index
-            state1_var_idx = 2 * state1_idx
-            state1 = self.states[state_index]
+        for distance_bwteen in self.distances:
 
-            state2_idx = state_index + 1
+            state1_idx = distance_bwteen.state1_index
+            state1_var_idx = 2 * state1_idx
+            state1 = self.states[state1_idx]
+
+            state2_idx = distance_bwteen.state2_index
             state2_var_idx = 2 * state2_idx
             state2 = self.states[state2_idx]
 
-            distance = self.distances[state_index]
+            distance = distance_bwteen.distance
 
             dm = t.DistanceMeasurement(state1, state2, distance)
 

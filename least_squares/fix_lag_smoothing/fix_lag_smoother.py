@@ -20,20 +20,6 @@ class FixLagSmoother:
     def get_all_states(self):
         return np.vstack(self.all_states)
 
-    @profiler.time_it
-    def optimize_for_new_measurement(self, distance_measurement):
-        lhs, rhs = self.construct_linear_system(distance_measurement)
-        # one step for linear system
-        lhs_LU = linalg.lu_factor(lhs) 
-        x = linalg.lu_solve(lhs_LU, -rhs)
-        
-        self.state = x[2:4].reshape([2])
-        self.all_states.append(self.state)
-
-        self.marginalization(lhs_LU, rhs)
-
-        return x
-
     def construct_linear_system(self, distance_measurement):
         # x_i, x_i+1
         size_variables = 4
@@ -44,7 +30,9 @@ class FixLagSmoother:
 
         lhs[0:2, 0:2] += self.state_hessian
         rhs[0:2] += self.state_b
-        dm = t.DistanceMeasurement(t.State(self.state.copy()), t.State(self.state.copy()), distance_measurement)
+
+        assert(distance_measurement.state1_index + 1 == distance_measurement.state2_index)
+        dm = t.DistanceMeasurement(t.State(self.state.copy()), t.State(self.state.copy()), distance_measurement.distance)
         jacobi_wrt_s1 = dm.jacobi_wrt_state1()
         jacobi_wrt_s2 = dm.jacobi_wrt_state2()
         jacobi_dm = np.hstack([jacobi_wrt_s1, jacobi_wrt_s2])
@@ -53,7 +41,28 @@ class FixLagSmoother:
 
         return lhs, rhs
 
-    def marginalization(self, lhs_LU, rhs):
+    @profiler.time_it
+    def optimize_for_new_measurement(self, distance_measurement):
+        if False:
+            return self.optimize_for_new_measurement_gaussian_impl(distance_measurement)
+        else:
+            return self.optimize_for_new_measurement_schur_impl(distance_measurement)
+
+    @profiler.time_it
+    def optimize_for_new_measurement_gaussian_impl(self, distance_measurement):
+        lhs, rhs = self.construct_linear_system(distance_measurement)
+        # one step for linear system
+        lhs_LU = linalg.lu_factor(lhs) 
+        x = linalg.lu_solve(lhs_LU, -rhs)
+        
+        self.state = x[2:4].reshape([2])
+        self.all_states.append(self.state)
+
+        self.marginalization_guassian_impl(lhs_LU, rhs)
+
+        return x
+
+    def marginalization_guassian_impl(self, lhs_LU, rhs):
         """
             factor-graph-for-robot-perception, page 68
         """
@@ -70,5 +79,30 @@ class FixLagSmoother:
 
         x_test = np.linalg.solve(self.state_hessian, -self.state_b)
         np.testing.assert_array_almost_equal(x_test.reshape([2]), self.state)
-        
+    
+    @profiler.time_it
+    def optimize_for_new_measurement_schur_impl(self, distance_measurement):
+        """
+            Force schur ordering.
+        """
+        lhs, rhs = self.construct_linear_system(distance_measurement)
+        # one step for linear system
+        # lhs = [A, B; C, D]
+        A = lhs[:-2, :-2]
+        B = lhs[:-2, -2:]
+        C = lhs[-2:, :-2]
+        D = lhs[-2:, -2:]
+        # rhs = [b1, b2]
+        b1 = rhs[:-2]
+        b2 = rhs[-2:]
+        A_inv = np.linalg.inv(A)
 
+        self.state_hessian = D - C @ A_inv @ B
+        self.state_b = b2 - C @ A_inv @ b1
+
+        x = np.linalg.solve(self.state_hessian, -self.state_b)
+
+        self.state = x.reshape([2])
+        self.all_states.append(self.state)
+
+        return x

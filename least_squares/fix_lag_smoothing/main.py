@@ -11,13 +11,14 @@ def simulate_data(num_states):
     movement = np.array([2., 1.])
     
     states_gt = [t.State(i * movement) for i in range(num_states)]
-    distrance_gt = [movement + np.random.rand() for i in range(num_states - 1)]
+    distrance_gt = [t.DistanceBetweenStates(state1_index = i, state2_index = i + 1, \
+        distance = movement + np.random.rand()) for i in range(num_states - 1)]
 
     state_guess = [t.State(movement) for i in range(num_states)]
 
     return states_gt, distrance_gt, state_guess
 
-if __name__ == "__main__":
+def fix_lag_smoothing_demo():
     NUM_STATES = 100
     states_gt, distrance_gt, state_guess = simulate_data(NUM_STATES)
     batch_optimization = batch_optimizer.BatchOptimization(state_guess, distrance_gt)
@@ -34,3 +35,9 @@ if __name__ == "__main__":
     print('diff :\n', fixed_lag_result - batch_result)
 
     profiler.print_time_map()
+
+
+if __name__ == "__main__":
+    fix_lag_smoothing_demo()
+
+    isam2_demo()

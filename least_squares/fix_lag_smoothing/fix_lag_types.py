@@ -11,6 +11,12 @@ class State:
         x, y = self.variables
         return x, y
 
+class DistanceBetweenStates:
+    def __init__(self, state1_index, state2_index, distance):
+        # Dangeours
+        self.state1_index = state1_index
+        self.state2_index = state2_index
+        self.distance = distance.copy()
 
 class DistanceMeasurement:
     def __init__(self, state1, state2, distance):
