@@ -56,11 +56,23 @@ int main(void)
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE; // use my IP
 
-	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return 1;
+	auto USE_AI_PASSIVE = false;
+	if(USE_AI_PASSIVE)
+	{
+		hints.ai_flags = AI_PASSIVE; // use my IP
+
+		if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+			return 1;
+		}	
+	}
+	else
+	{
+		if ((rv = getaddrinfo("192.168.0.138", PORT, &hints, &servinfo)) != 0) {
+			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+			return 1;
+		}		
 	}
 
 	// loop through all the results and bind to the first we can
