@@ -67,6 +67,19 @@ public:
     {
     }
 
+    ~TcpServer()
+    {
+        close(tcp_data_.sockfd);
+        cv.notify_one();
+
+        std::cout << "data_handing_thread_.joinable(): " << data_handing_thread_.joinable() << std::endl;
+        if(data_handing_thread_.joinable())
+        {
+            std::cout << "joining thread..." << std::endl;
+            data_handing_thread_.join();
+        }
+    }
+
     bool initailize()
     {
         if(socket_initailization() == false)
@@ -231,7 +244,28 @@ private:
             // send data to client
             // It is a blocking call
             send_data_in_queue_to_client(new_fd);
+
+            std::cout << "close socket" << std::endl;
+            close(new_fd);
         }
+    }
+
+    bool check_socket_connection(Socket connected_client)
+    {
+        int error_code;
+        socklen_t error_code_size = sizeof(error_code);
+        if(getsockopt(connected_client, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size) == -1)
+        {
+            std::cout << "getsockopt failed" << std::endl;
+            return false;
+        }
+        else if(error_code != 0)
+        {
+            std::cout << "error_code: " << error_code << std::endl;
+            return false;
+        }
+
+        return true;
     }
 
     void send_data_in_queue_to_client(Socket connected_client)
@@ -240,6 +274,11 @@ private:
         {
             std::unique_lock<std::mutex> lck(mtx);
             cv.wait(lck);
+
+            if(check_socket_connection(connected_client) == false)
+            {
+                break;
+            }
 
             int error_code;
             socklen_t error_code_size = sizeof(error_code);
@@ -257,17 +296,31 @@ private:
 
             auto icp_send_function = [&connected_client](char * const data_ptr)
             {
-                std::cout << "send data by icp::send" << std::endl;
+                std::cout << "send data by icp::send, data:" << data_ptr << std::endl;
                 // TODO: didn't check partial send
-                if (send(connected_client, data_ptr, CellSizeByte, 0) == -1)
+                int sended_byte = send(connected_client, data_ptr, CellSizeByte, 0);
+
+                if(sended_byte == -1)
                 {
+                    std::cout << "send failed" << std::endl;
                     return false;
                 }
-
-                return true;
+                else if(sended_byte < static_cast<int>(CellSizeByte))
+                {
+                    std::cout << "send partail data" << std::endl;
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
             };
 
-            while(buffer_.process(icp_send_function) == true);
+            while(buffer_.process(icp_send_function) == true)
+            {
+                // TODO: client lose data if send to fast. Doesn't make sense
+                usleep(50);
+            }
         }
     }
 

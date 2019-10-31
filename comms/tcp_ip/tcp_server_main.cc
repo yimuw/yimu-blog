@@ -13,7 +13,7 @@ int main(void)
 
     tcp_server.initailize();
 
-    for(int i = 0; i < 1000; ++i)
+    for(int i = 0; i < 10; ++i)
     {
         sleep(1);
 

@@ -14,6 +14,8 @@
 
 #include <arpa/inet.h>
 
+#include <iostream>
+
 #define PORT "3490" // the port client will be connecting to 
 
 #define MAXDATASIZE 100 // max number of bytes we can get at once 
@@ -26,6 +28,24 @@ void *get_in_addr(struct sockaddr *sa)
 	}
 
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+bool check_socket_connection(int connected_client)
+{
+	int error_code;
+	socklen_t error_code_size = sizeof(error_code);
+	if(getsockopt(connected_client, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size) == -1)
+	{
+		std::cout << "getsockopt failed" << std::endl;
+		return false;
+	}
+	else if(error_code != 0)
+	{
+		std::cout << "error_code: " << error_code << std::endl;
+		return false;
+	}
+
+	return true;
 }
 
 int main(int argc, char *argv[])
@@ -78,7 +98,7 @@ int main(int argc, char *argv[])
 
 	freeaddrinfo(servinfo); // all done with this structure
 
-	while(true)
+	while(check_socket_connection(sockfd) == true)
 	{
 		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 			perror("recv");
