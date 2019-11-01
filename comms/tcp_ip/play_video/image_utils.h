@@ -43,6 +43,7 @@ struct ImageIO
 };
 
 // https://stackoverflow.com/questions/4170745/serializing-opencv-mat-vec3f/21444792#21444792
+// Dosen't consider platfrom.
 std::vector<char> serialize_cvmat(const cv::Mat& mat)
 {
 	std::vector<char> serialized_data;

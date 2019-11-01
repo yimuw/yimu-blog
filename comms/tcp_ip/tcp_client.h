@@ -33,8 +33,11 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+// https://beej.us/guide/bgnet/html//index.html
 bool recv_all(int socket, char *buf, int want_size_byte)
 {
+    SLIENT_COUT_CURRENT_SCOPE;
+
     int total = 0;
     int n = -1;
     int want = want_size_byte;
@@ -44,9 +47,8 @@ bool recv_all(int socket, char *buf, int want_size_byte)
         n = recv(socket, buf + total, want - total, 0);
         if (n == -1) 
         { 
-            std::cout << "recv fail, retry" << std::endl;
-            usleep(10);
-            continue; 
+            std::cout << "recv fail" << std::endl;
+            return false;
         }
         if(n == 0)
         {
@@ -224,13 +226,18 @@ private:
             sync::SyncStatus status = sync::wait_for_control_packge(connected_client, buf, received_data);
             if(status == sync::SyncStatus::success)
             {
-                bool recv_status = recv_all(connected_client, buf + received_data, 
-                    CellSizeByte - received_data);
-                if (recv_status == false)
+                const int rest_bytes = CellSizeByte - received_data;
+                assert(rest_bytes >= 0);
+                if(rest_bytes > 0)
                 {
-                    perror("recv_all failed");
-                    std::cerr << "recv_all failed" << std::endl;
-                    break;
+                    bool recv_status = recv_all(connected_client, buf + received_data, 
+                        CellSizeByte - received_data);
+                    if (recv_status == false)
+                    {
+                        perror("recv_all failed");
+                        std::cerr << "recv_all failed" << std::endl;
+                        break;
+                    }
                 }
     
                 // TODO: not efficient. Do one copy.

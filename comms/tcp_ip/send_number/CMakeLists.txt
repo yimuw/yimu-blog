@@ -1,7 +1,9 @@
-add_executable(tcp_server
-               tcp_server_main.cc)
-target_link_libraries(tcp_server 
+add_executable(client_number
+               client_number.cc)
+target_link_libraries(client_number 
                       pthread)
 
-add_executable(client_example_while
-               client_example_while.cc)
+add_executable(server_number
+               server_number.cc)
+target_link_libraries(server_number 
+                      pthread)

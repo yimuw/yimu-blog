@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <iostream>
 #include <signal.h>
+#include <sstream>
 #include <unistd.h>
 #include <cstring>
 #include <atomic>
@@ -12,6 +13,36 @@ namespace comms
 {
 
 #define PRINT_NAME_VAR(x) std::cout << #x << " :" << x << std::endl;
+
+namespace internal
+{
+struct SilentCoutInternal
+{
+    SilentCoutInternal()
+    {
+        oldCoutStreamBuf = std::cout.rdbuf();
+        std::cout.rdbuf( strCout.rdbuf() );
+    }
+
+    ~SilentCoutInternal()
+    {
+        std::cout.rdbuf(oldCoutStreamBuf);
+    }
+
+    std::ostringstream strCout;
+    std::streambuf* oldCoutStreamBuf = nullptr;
+};
+}
+
+// TODO: logger
+#define SLIENT_COUT_CURRENT_SCOPE    internal::SilentCoutInternal var_name_duplicated;
+// #define SLIENT_COUT_CURRENT_SCOPE
+
+template<typename T>
+char * cast_to_char_ptr(T * const ptr)
+{
+    return reinterpret_cast<char *>(ptr);
+}
 
 // TODO: class
 namespace control
@@ -58,7 +89,6 @@ bool send_control_package(int socket)
         std::cout << "send_control_package fail" << std::endl;
         return false;
     }
-    std::cout << "control pkg size: " << n << std::endl;
 
     return true;
 }
@@ -73,10 +103,10 @@ enum class SyncStatus
 SyncStatus wait_for_control_packge(int socket, char *buf, int &received_data)
 {
     // TODO: doesn't work if TCP decide to break control message into 2 receive.
+    //       or mutiple control pkg beem grouped into the same tcp recv
     constexpr int SMALL_BUFFER_SIZE  = 1024;
     char small_buf[SMALL_BUFFER_SIZE];
 
-    std::cout << "wait for control packge...." << std::endl;
     for(size_t num_try = 0; num_try < 1000; ++num_try)
     {
         int n = recv(socket, small_buf, SMALL_BUFFER_SIZE, 0);
@@ -117,6 +147,7 @@ SyncStatus wait_for_control_packge(int socket, char *buf, int &received_data)
 }
 }
 
+// Simple circular buffer protected by mutex
 template<size_t BufferLength, size_t CellSizeByte>
 class CircularBuffer
 {

@@ -46,11 +46,13 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+// https://beej.us/guide/bgnet/html//index.html
 int sendall(int socket, char *buf, int len)
 {
+    SLIENT_COUT_CURRENT_SCOPE;
+
     int sent = 0;
-    // how many bytes we've sent
-    int bytesleft = len; // how many we have left to send
+    int bytesleft = len;
     int n = -1;
 
     while(sent < len) 
@@ -70,7 +72,7 @@ int sendall(int socket, char *buf, int len)
     PRINT_NAME_VAR(sent);
     assert(len == sent);
     
-    return n==-1?-1:0; // return -1 on failure, 0 on success
+    return n==-1?-1:0;
 }
 
 
@@ -253,7 +255,8 @@ private:
         struct sockaddr_storage their_addr;
         socklen_t sin_size = sizeof their_addr;
 		new_fd = accept(tcp_data_.sockfd, (struct sockaddr *)&their_addr, &sin_size);
-		if (new_fd == -1) {
+		if (new_fd == -1) 
+        {
 			perror("accept");
 			return false;
 		}
@@ -356,9 +359,8 @@ private:
                 }
             };
 
-            while(buffer_.process(icp_send_function) == true)
-            {
-            }
+            // send everything in buffer
+            while(buffer_.process(icp_send_function) == true);
         }
     }
 

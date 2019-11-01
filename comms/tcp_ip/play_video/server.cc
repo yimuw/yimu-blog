@@ -5,6 +5,7 @@ using namespace comms;
 
 constexpr size_t IMAGE_SIZE_BYTE = 995340;
 
+// TODO: trait for each type. e.g. <type>::size(), <type>::serialize()...
 struct ImagePublisher
 {
     using image_server = TcpServer<IMAGE_SIZE_BYTE>;
