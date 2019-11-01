@@ -48,26 +48,27 @@ void *get_in_addr(struct sockaddr *sa)
 
 int sendall(int socket, char *buf, int len)
 {
-    int total = 0;
+    int sent = 0;
     // how many bytes we've sent
     int bytesleft = len; // how many we have left to send
     int n = -1;
 
-    while(total < len) 
+    while(sent < len) 
     {
-        n = send(socket, buf+total, bytesleft, 0);
+        n = send(socket, buf+sent, bytesleft, 0);
         if (n == -1) 
         { 
             std::cout << "send fail, retry" << std::endl;
             usleep(50);
             continue; 
         }
-        total += n;
+        sent += n;
         bytesleft -= n;
+        PRINT_NAME_VAR(n);
     }
     PRINT_NAME_VAR(len);
-    PRINT_NAME_VAR(total);
-    assert(len == total);
+    PRINT_NAME_VAR(sent);
+    assert(len == sent);
     
     return n==-1?-1:0; // return -1 on failure, 0 on success
 }
@@ -115,6 +116,7 @@ public:
             return false;
         }
 
+        // Start the background thread
         data_handing_thread_ = std::thread([this]()
         {
             std::cout << "interal_loop start" << std::endl;
@@ -125,21 +127,27 @@ public:
         return true;
     }
 
+    // Copy to buffer, and notify data handing thread to call tcp send.
+    // Not guarantee to publish successfully. 
     bool publish(char const * const data_ptr)
     {
+        // copy data to buffer
         if(buffer_.write(data_ptr))
         {
+            // notice data_handing_thread_ to send by tcp.
             cv.notify_one();
             return true;
         }
         else
         {
-            std::cout << "write failed" << std::endl;
+            std::cout << "write failed!" << std::endl;
             return false;
         } 
     }
 
 private:
+    // Thanks beej!!
+    // https://beej.us/guide/bgnet/html//index.html
     bool socket_initailization()
     {
         struct addrinfo hints;
@@ -224,6 +232,7 @@ private:
         return true;
     }
 
+    // Maybe is shouldn't be a class method
     bool kill_dead_processes()
     {
         struct sigaction sa;
@@ -260,7 +269,7 @@ private:
     void interal_loop()
     {
         // loop for new connections
-        while(control::problem_exit() == false)
+        while(control::program_exit() == false)
         {
             // have a connection!
             // It is a blocking call
@@ -269,7 +278,7 @@ private:
             {
                 std::cout << "no connection. retry" << std::endl;
                 sleep(1);
-                if(control::problem_exit())
+                if(control::program_exit())
                 {
                     break;
                 }
@@ -317,7 +326,7 @@ private:
             std::unique_lock<std::mutex> lck(mtx);
             cv.wait(lck);
 
-            if(control::problem_exit() == true)
+            if(control::program_exit() == true)
             {
                 std::cout << "exit send_data_in_queue_to_client loop" << std::endl;
                 break;
@@ -349,8 +358,6 @@ private:
 
             while(buffer_.process(icp_send_function) == true)
             {
-                // TODO: client lose data if send to fast. Doesn't make sense
-                usleep(50);
             }
         }
     }

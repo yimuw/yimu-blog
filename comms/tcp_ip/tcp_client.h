@@ -33,19 +33,19 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-// TODO: definitely not the best way to handle missing data
-bool recv_all(int socket, char *buf, int len, int buf_size)
+bool recv_all(int socket, char *buf, int want_size_byte)
 {
     int total = 0;
     int n = -1;
+    int want = want_size_byte;
 
-    while(total < len) 
+    while(total < want_size_byte) 
     {
-        n = recv(socket, buf + total, buf_size, 0);
+        n = recv(socket, buf + total, want - total, 0);
         if (n == -1) 
         { 
             std::cout << "recv fail, retry" << std::endl;
-            usleep(50);
+            usleep(10);
             continue; 
         }
         if(n == 0)
@@ -54,10 +54,12 @@ bool recv_all(int socket, char *buf, int len, int buf_size)
             return false;
         }
         total += n;
-        std::cout << "recv n bytes: " << n << std::endl;
+        std::cout << "recv n bytes: " << n << std::endl; 
     }
 
-    assert(len == total);
+    std::cout << "total :" << total << std::endl;
+
+    assert(want_size_byte == total && "len != total");
     
     return true;
 }
@@ -178,7 +180,7 @@ private:
     void interal_loop()
     {
         // loop for new connections
-        while(control::problem_exit() == false)
+        while(control::program_exit() == false)
         {
             if(socket_initailization() == false)
             {
@@ -192,7 +194,7 @@ private:
         }
     }
 
-    // TODO: how to do it on client side?
+    // TODO: how to do it on client side? current handled by n = recv 
     bool check_socket_connection(Socket connected_client)
     {
         return true;
@@ -200,11 +202,12 @@ private:
 
     void recv_data_and_write_to_queue(Socket connected_client)
     {
+        // TODO: super large array in stack is not good.
         char buf[CellSizeByte];
 
         while(true)
         {
-            if(control::problem_exit() == true)
+            if(control::program_exit() == true)
             {
                 std::cout << "exit send_data_in_queue_to_client loop" << std::endl;
                 break;
@@ -216,9 +219,13 @@ private:
                 break;
             }
 
-            if(package_sync::wait_for_control_packge(connected_client, buf, CellSizeByte) == true)
+            int received_data = 0;
+            namespace sync = comms::package_sync;
+            sync::SyncStatus status = sync::wait_for_control_packge(connected_client, buf, received_data);
+            if(status == sync::SyncStatus::success)
             {
-                bool recv_status = recv_all(connected_client, buf, CellSizeByte, CellSizeByte);
+                bool recv_status = recv_all(connected_client, buf + received_data, 
+                    CellSizeByte - received_data);
                 if (recv_status == false)
                 {
                     perror("recv_all failed");
@@ -229,6 +236,11 @@ private:
                 // TODO: not efficient. Do one copy.
                 buffer_.write(buf);
             }
+            else if(status == sync::SyncStatus::failure)
+            {
+                break;
+            }
+            
         }
     }
 

@@ -5,7 +5,7 @@ using namespace comms;
 
 int main(void)
 {
-    control::gracefully_exit();
+    control::set_gracefully_exit();
 
     TcpServerConfig tcp_config{"3490", "192.168.0.138"};
 
@@ -23,7 +23,7 @@ int main(void)
         std::cout << "publish: " << test_data << std::endl;
         tcp_server.publish(test_data);
 
-        if(control::problem_exit() == true)
+        if(control::program_exit() == true)
         {
             break;
         }

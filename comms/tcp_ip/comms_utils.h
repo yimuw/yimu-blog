@@ -13,6 +13,7 @@ namespace comms
 
 #define PRINT_NAME_VAR(x) std::cout << #x << " :" << x << std::endl;
 
+// TODO: class
 namespace control
 {
 std::atomic<bool> quit(false);    // signal flag
@@ -22,7 +23,7 @@ void got_signal(int)
     quit.store(true);
 }
 
-void gracefully_exit()
+void set_gracefully_exit()
 {
     struct sigaction sa;
     memset( &sa, 0, sizeof(sa) );
@@ -31,15 +32,23 @@ void gracefully_exit()
     sigaction(SIGINT,&sa,NULL);
 }
 
-bool problem_exit()
+bool program_exit()
 {
     return quit.load();
 }
 }
 
+// Handing ICP data packging 
+// e.g. server: send(100byte), send(100byte)
+//      client: 20byte = recv(), 110byte = recv(), 70byte = recv
 namespace package_sync
 {
-char control_string[] = "Yo, I am control packge";
+char control_string[] = "I am just some magic number. like 123456789. \
+                         I use it to singal the start of a message.   \
+                         make sure you dont type it in your message!  \
+                         I am curious how do people handle it in      \
+                         pratice? Specitail character? definitely     \
+                         not a super long string like this.";
 
 bool send_control_package(int socket)
 {
@@ -49,40 +58,62 @@ bool send_control_package(int socket)
         std::cout << "send_control_package fail" << std::endl;
         return false;
     }
+    std::cout << "control pkg size: " << n << std::endl;
 
     return true;
 }
 
-bool wait_for_control_packge(int socket, char *buf, int buf_size)
+enum class SyncStatus
 {
-    for(size_t num_try = 0; num_try < 100;)
+    success,
+    failure,
+    timeout
+};
+
+SyncStatus wait_for_control_packge(int socket, char *buf, int &received_data)
+{
+    // TODO: doesn't work if TCP decide to break control message into 2 receive.
+    constexpr int SMALL_BUFFER_SIZE  = 1024;
+    char small_buf[SMALL_BUFFER_SIZE];
+
+    std::cout << "wait for control packge...." << std::endl;
+    for(size_t num_try = 0; num_try < 1000; ++num_try)
     {
-        int n = recv(socket, buf, buf_size, 0);
+        int n = recv(socket, small_buf, SMALL_BUFFER_SIZE, 0);
         if (n == -1) 
         { 
             std::cout << "wait_for_control_packge recv fail, retry" << std::endl;
-            usleep(50);
-            continue; 
+            return SyncStatus::failure;
         }
         if(n == 0)
         {
             std::cout << "wait_for_control_packge server disconnected" << std::endl;
-            return false;
+            return SyncStatus::failure;
         }
         
-        if(strcmp(buf, control_string) == 0)
+        char * control_string_ptr = strstr(small_buf, control_string);
+        if(control_string_ptr == nullptr)
         {
-            std::cout << "get control pkg" << std::endl;
-            return true;
+            continue;
         }
         else
         {
-            std::cout << "ignore other pkg" << std::endl;
+            // strip control_string, copy other data to main buffer
+            // assume buff is larger than SMALL_BUFFER_SIZE
+            const char * mesage_start = control_string_ptr + sizeof(control_string);
+            const char * message_end = small_buf + n;
+            const int message_size = message_end - mesage_start;
+            // assume buf is long enough.
+            memcpy( buf, 
+                    mesage_start, 
+                    message_size);
+            received_data = message_size;
+            
+            return SyncStatus::success;
         }
-
-        usleep(50);
     }
-    return false;
+    std::cout << "wait_for_control_packge timeout" << std::endl;
+    return SyncStatus::timeout;
 }
 }
 
@@ -159,54 +190,3 @@ private:
     std::vector<Cell> buffer_ = std::vector<Cell>(BufferLength);
 };
 }
-
-// #include <opencv2/core/core.hpp>
-
-// // https://stackoverflow.com/questions/4170745/serializing-opencv-mat-vec3f/21444792#21444792
-// std::vector<char> serialize_cvmat(const cv::Mat& mat)
-// {
-// 	std::vector<char> serialized_data;
-// 	// 4 int32_t
-// 	serialized_data.resize(4 * 3);
-
-//     int cols, rows, type;
-//     bool continuous;
-
-//     cols = mat.cols; 
-//     rows = mat.rows; 
-//     type = mat.type();
-//     continuous = mat.isContinuous();
-
-//     assert(continuous == true);
-
-//     *reinterpret_cast<uint32_t *>(&serialized_data.at(0)) = cols;
-//     *reinterpret_cast<uint32_t *>(&serialized_data.at(4)) = rows;
-//     *reinterpret_cast<uint32_t *>(&serialized_data.at(8)) = type;
-//     // mat.create(rows, cols, type);
-
-//     const size_t data_size = rows * cols * mat.elemSize();
-//     serialized_data.insert(serialized_data.end(), mat.ptr(), mat.ptr() + data_size);
-
-// 	return serialized_data; 
-// }
-
-
-// cv::Mat deserialize_cvmat(const char * const serialized_data)
-// {
-//     int cols, rows, type;
-//     cols = *reinterpret_cast<const uint32_t *>(&serialized_data[0]); 
-//     rows = *reinterpret_cast<const uint32_t *>(&serialized_data[4]);
-//     type = *reinterpret_cast<const uint32_t *>(&serialized_data[8]);
-
-//     cv::Mat res_mat;
-//     res_mat.create(rows, cols, type);
-
-//     const size_t data_size = rows * cols * res_mat.elemSize();
-
-//     auto imdata_start = serialized_data + 4 * 3;
-//     auto imdata_end = serialized_data + 4 * 3 + data_size;
-
-//     std::copy(imdata_start, imdata_end, res_mat.ptr());
-
-// 	return res_mat; 
-// }
