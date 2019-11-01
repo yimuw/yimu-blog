@@ -104,6 +104,13 @@ int main(int argc, char *argv[])
 			perror("recv");
 			exit(1);
 		}
+
+		if(numbytes == 0)
+		{
+			std::cout << "server socket closed" << std::endl;
+			break;
+		}
+
 		buf[numbytes] = '\0';
 		printf("client: received '%s'\n",buf);
 	}

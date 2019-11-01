@@ -3,8 +3,11 @@
 
 using namespace comms;
 
+
 int main(void)
 {
+    control::gracefully_exit();
+
     TcpServerConfig tcp_config{"3490", "192.168.0.138"};
 
     constexpr size_t MESSAGE_SIZE_BYTE = 20;
@@ -13,13 +16,18 @@ int main(void)
 
     tcp_server.initailize();
 
-    for(int i = 0; i < 10; ++i)
+    for(int i = 0; i < 1000; ++i)
     {
-        sleep(1);
+        usleep(100 * 1e3);
 
         sprintf (test_data, "%d", i);
         std::cout << "publish: " << test_data << std::endl;
         tcp_server.publish(test_data);
+
+        if(control::problem_exit() == true)
+        {
+            break;
+        }
     }
 
 }

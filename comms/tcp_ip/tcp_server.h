@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -72,11 +73,11 @@ public:
         close(tcp_data_.sockfd);
         cv.notify_one();
 
-        std::cout << "data_handing_thread_.joinable(): " << data_handing_thread_.joinable() << std::endl;
         if(data_handing_thread_.joinable())
         {
             std::cout << "joining thread..." << std::endl;
             data_handing_thread_.join();
+            std::cout << "data_handing_thread joined" << std::endl;
         }
     }
 
@@ -183,6 +184,12 @@ private:
             return false;
         }
 
+        // non-blocking
+        if(fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1)
+        {
+            std::cerr << "fcntl failed" << std::endl;
+            return false;
+        }
         tcp_data_.sockfd = sockfd;
 
         std::cout << "server initailization done. waiting for connections..." << std::endl;
@@ -226,27 +233,35 @@ private:
     void interal_loop()
     {
         // loop for new connections
-        // TODO: zombie
-        while(true)
+        while(control::problem_exit() == false)
         {
             // have a connection!
             // It is a blocking call
             Socket new_fd;
             if(wait_for_connection(new_fd) == false)
             {
-                std::cout << "wait_for_connection failed" << std::endl;
+                std::cout << "no connection. retry" << std::endl;
                 sleep(1);
-                continue;
+                if(control::problem_exit())
+                {
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
             }
+            else
+            {
+                std::cout << "get connection" << std::endl;
 
-            std::cout << "get connection" << std::endl;
+                // send data to client
+                // It is a blocking call
+                send_data_in_queue_to_client(new_fd);
 
-            // send data to client
-            // It is a blocking call
-            send_data_in_queue_to_client(new_fd);
-
-            std::cout << "close socket" << std::endl;
-            close(new_fd);
+                std::cout << "close socket" << std::endl;
+                close(new_fd);
+            }
         }
     }
 
@@ -275,24 +290,17 @@ private:
             std::unique_lock<std::mutex> lck(mtx);
             cv.wait(lck);
 
+            if(control::problem_exit() == true)
+            {
+                std::cout << "exit send_data_in_queue_to_client loop" << std::endl;
+                break;
+            }
+
+            // connect to socket
             if(check_socket_connection(connected_client) == false)
             {
                 break;
             }
-
-            int error_code;
-            socklen_t error_code_size = sizeof(error_code);
-            if(getsockopt(connected_client, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size) == -1)
-            {
-                std::cout << "getsockopt failed" << std::endl;
-                break;
-            }
-            else if(error_code != 0)
-            {
-                std::cout << "error_code: " << error_code << std::endl;
-                break;
-            }
-            
 
             auto icp_send_function = [&connected_client](char * const data_ptr)
             {
@@ -331,7 +339,7 @@ private:
     // data handling thread
     std::thread data_handing_thread_;
 
-    static constexpr size_t BUFFER_LENGTH = 10;
+    static constexpr size_t BUFFER_LENGTH {10};
     CircularBuffer<BUFFER_LENGTH, CellSizeByte> buffer_;
 
     TcpData tcp_data_;

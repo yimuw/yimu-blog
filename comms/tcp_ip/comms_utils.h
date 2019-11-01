@@ -1,7 +1,39 @@
 #include <vector>
 #include <string.h>
-#include <mutex>    
+#include <mutex>   
 
+#include <iostream>
+#include <signal.h>
+#include <unistd.h>
+#include <cstring>
+#include <atomic>
+
+namespace comms
+{
+namespace control
+{
+std::atomic<bool> quit(false);    // signal flag
+
+void got_signal(int)
+{
+    quit.store(true);
+}
+
+void gracefully_exit()
+{
+    struct sigaction sa;
+    memset( &sa, 0, sizeof(sa) );
+    sa.sa_handler = got_signal;
+    sigfillset(&sa.sa_mask);
+    sigaction(SIGINT,&sa,NULL);
+}
+
+bool problem_exit()
+{
+    return quit.load();
+}
+
+}
 
 template<size_t BufferLength, size_t CellSizeByte>
 class CircularBuffer
@@ -19,7 +51,7 @@ public:
     {
         const size_t write_idx_warp = write_idx_ % BufferLength;
         {
-            std::lock_guard<std::mutex> lck (buffer_[write_idx_warp].mtx);
+            std::lock_guard<std::mutex> lck (buffer_.at(write_idx_warp).mtx);
             memcpy(buffer_[write_idx_warp].blob, data_ptr, CellSizeByte);
         }
 
@@ -46,7 +78,7 @@ public:
         {
             bool status = false;
             {
-                std::lock_guard<std::mutex> lck (buffer_[read_idx_ % BufferLength].mtx);
+                std::lock_guard<std::mutex> lck (buffer_.at(read_idx_ % BufferLength).mtx);
                 status = process_function(buffer_[read_idx_ % BufferLength].blob);
             }
             
@@ -63,10 +95,12 @@ private:
     // seperate index mutex and data mutex for efficiency
     std::mutex index_mtx_;
 
-    size_t read_idx_ = 0;
-    size_t write_idx_ = 0;
-    Cell buffer_[BufferLength];
+    size_t read_idx_ {0};
+    size_t write_idx_ {0};
+
+    std::vector<Cell> buffer_ = std::vector<Cell>(BufferLength);
 };
+}
 
 // #include <opencv2/core/core.hpp>
 
