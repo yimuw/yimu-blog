@@ -1,8 +1,7 @@
-#include "tcp_server.h"
+#include "../tcp_server.h"
 
 
 using namespace comms;
-
 
 int main(void)
 {

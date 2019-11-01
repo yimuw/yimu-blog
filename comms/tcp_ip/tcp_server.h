@@ -46,6 +46,33 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+int sendall(int socket, char *buf, int len)
+{
+    int total = 0;
+    // how many bytes we've sent
+    int bytesleft = len; // how many we have left to send
+    int n = -1;
+
+    while(total < len) 
+    {
+        n = send(socket, buf+total, bytesleft, 0);
+        if (n == -1) 
+        { 
+            std::cout << "send fail, retry" << std::endl;
+            usleep(50);
+            continue; 
+        }
+        total += n;
+        bytesleft -= n;
+    }
+    PRINT_NAME_VAR(len);
+    PRINT_NAME_VAR(total);
+    assert(len == total);
+    
+    return n==-1?-1:0; // return -1 on failure, 0 on success
+}
+
+
 struct TcpServerConfig
 {
     std::string port;
@@ -302,20 +329,16 @@ private:
                 break;
             }
 
+            package_sync::send_control_package(connected_client);
+
             auto icp_send_function = [&connected_client](char * const data_ptr)
             {
-                std::cout << "send data by icp::send, data:" << data_ptr << std::endl;
-                // TODO: didn't check partial send
-                int sended_byte = send(connected_client, data_ptr, CellSizeByte, 0);
+                std::cout << "send data by icp::send"  << std::endl;
 
-                if(sended_byte == -1)
+                int status = sendall(connected_client, data_ptr, CellSizeByte);
+                if(status == -1)
                 {
                     std::cout << "send failed" << std::endl;
-                    return false;
-                }
-                else if(sended_byte < static_cast<int>(CellSizeByte))
-                {
-                    std::cout << "send partail data" << std::endl;
                     return false;
                 }
                 else

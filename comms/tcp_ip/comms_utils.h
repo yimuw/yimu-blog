@@ -1,7 +1,7 @@
 #include <vector>
 #include <string.h>
 #include <mutex>   
-
+#include <assert.h>
 #include <iostream>
 #include <signal.h>
 #include <unistd.h>
@@ -10,6 +10,9 @@
 
 namespace comms
 {
+
+#define PRINT_NAME_VAR(x) std::cout << #x << " :" << x << std::endl;
+
 namespace control
 {
 std::atomic<bool> quit(false);    // signal flag
@@ -32,7 +35,55 @@ bool problem_exit()
 {
     return quit.load();
 }
+}
 
+namespace package_sync
+{
+char control_string[] = "Yo, I am control packge";
+
+bool send_control_package(int socket)
+{
+    int n = send(socket, control_string, sizeof(control_string), 0);
+    if (n == -1) 
+    { 
+        std::cout << "send_control_package fail" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool wait_for_control_packge(int socket, char *buf, int buf_size)
+{
+    for(size_t num_try = 0; num_try < 100;)
+    {
+        int n = recv(socket, buf, buf_size, 0);
+        if (n == -1) 
+        { 
+            std::cout << "wait_for_control_packge recv fail, retry" << std::endl;
+            usleep(50);
+            continue; 
+        }
+        if(n == 0)
+        {
+            std::cout << "wait_for_control_packge server disconnected" << std::endl;
+            return false;
+        }
+        
+        if(strcmp(buf, control_string) == 0)
+        {
+            std::cout << "get control pkg" << std::endl;
+            return true;
+        }
+        else
+        {
+            std::cout << "ignore other pkg" << std::endl;
+        }
+
+        usleep(50);
+    }
+    return false;
+}
 }
 
 template<size_t BufferLength, size_t CellSizeByte>
@@ -46,6 +97,13 @@ public:
         std::mutex mtx;
         Byte blob[CellSizeByte];
     };
+
+    bool has_data()
+    {
+        std::lock_guard<std::mutex> lck(index_mtx_);
+        assert(write_idx_ >= read_idx_);
+        return write_idx_ != read_idx_;
+    }
 
     bool write(char const * const data_ptr)
     {
