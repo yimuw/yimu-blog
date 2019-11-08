@@ -4,6 +4,8 @@
 using namespace comms;
 
 constexpr size_t IMAGE_SIZE_BYTE = 995340;
+const auto ip = "192.168.1.9";
+const auto port = "3490";
 
 // TODO: trait for each type. e.g. <type>::size(), <type>::serialize()...
 struct ImagePublisher
@@ -12,7 +14,7 @@ struct ImagePublisher
 
     ImagePublisher()
     {
-        TcpServerConfig tcp_config{"3490", "172.31.99.184"};
+        TcpServerConfig tcp_config{port, ip};
         tcp_server_ptr = std::make_shared<image_server>(tcp_config);
 
         tcp_server_ptr->initailize();

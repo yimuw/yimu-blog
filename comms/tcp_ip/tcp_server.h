@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -19,138 +21,50 @@
 #include <condition_variable>
 
 #include "comms_utils.h"
+#include "tcp_recv_buffer.h"
+#include "tcp_sent_buffer.h"
+#include "tcp_peer.h"
 
 
 namespace comms
 {
-void sigchld_handler(int s)
-{
-	(void)s; // quiet unused variable warning
-
-	// waitpid() might overwrite errno, so we save and restore it:
-	int saved_errno = errno;
-
-	while(waitpid(-1, NULL, WNOHANG) > 0);
-
-	errno = saved_errno;
-}
-
-
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
-	if (sa->sa_family == AF_INET) {
-		return &(((struct sockaddr_in*)sa)->sin_addr);
-	}
-
-	return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
-// https://beej.us/guide/bgnet/html//index.html
-int sendall(int socket, char *buf, int len)
-{
-    SLIENT_COUT_CURRENT_SCOPE;
-
-    int sent = 0;
-    int bytesleft = len;
-    int n = -1;
-
-    while(sent < len) 
-    {
-        n = send(socket, buf+sent, bytesleft, 0);
-        if (n == -1) 
-        { 
-            std::cout << "send fail, retry" << std::endl;
-            usleep(50);
-            continue; 
-        }
-        sent += n;
-        bytesleft -= n;
-        PRINT_NAME_VAR(n);
-    }
-    PRINT_NAME_VAR(len);
-    PRINT_NAME_VAR(sent);
-    assert(len == sent);
-    
-    return n==-1?-1:0;
-}
-
-
-struct TcpServerConfig
-{
-    std::string port;
-    std::string ip;
-};
 
 template<size_t CellSizeByte>
-class TcpServer
+class TcpServer : public TcpPeer
 {
 public:
-    // C programmers are crazy...
-    using Socket = int;
-    struct TcpData
+    TcpServer(const TcpConfig &config)
     {
-        Socket sockfd;
-    };
-
-    TcpServer(const TcpServerConfig &config)
-        : config_(config)
-    {
-    }
-
-    ~TcpServer()
-    {
-        close(tcp_data_.sockfd);
-        cv.notify_one();
-
-        if(data_handing_thread_.joinable())
-        {
-            std::cout << "joining thread..." << std::endl;
-            data_handing_thread_.join();
-            std::cout << "data_handing_thread joined" << std::endl;
-        }
+        config_ = config;
     }
 
     bool initailize()
     {
-        if(socket_initailization() == false)
+        if(server_socket_initailization() == false)
         {
             return false;
         }
 
-        // Start the background thread
-        data_handing_thread_ = std::thread([this]()
+        if(wait_for_client_connection(tcp_data_.connected_sockfd) == false)
         {
-            std::cout << "interal_loop start" << std::endl;
-            this->interal_loop();
-        });
+            return false;
+        }
+
+        if(control::program_exit() == true)
+        {
+            return false;
+        }
+
+        recv_buffer_.start_recv_thread(tcp_data_.connected_sockfd);
 
         std::cout << "initailize done" << std::endl;
         return true;
     }
 
-    // Copy to buffer, and notify data handing thread to call tcp send.
-    // Not guarantee to publish successfully. 
-    bool publish(char const * const data_ptr)
-    {
-        // copy data to buffer
-        if(buffer_.write(data_ptr))
-        {
-            // notice data_handing_thread_ to send by tcp.
-            cv.notify_one();
-            return true;
-        }
-        else
-        {
-            std::cout << "write failed!" << std::endl;
-            return false;
-        } 
-    }
-
 private:
     // Thanks beej!!
     // https://beej.us/guide/bgnet/html//index.html
-    bool socket_initailization()
+    bool server_socket_initailization()
     {
         struct addrinfo hints;
         memset(&hints, 0, sizeof hints);
@@ -159,11 +73,24 @@ private:
 
         int rv;
         struct addrinfo *servinfo;
-        if ((rv = getaddrinfo(config_.ip.c_str(), config_.port.c_str(), &hints, &servinfo)) != 0) 
+
+        if(config_.ip == "AI_PASSIVE")
         {
-            std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
-			return false;
-		}	
+            hints.ai_flags = AI_PASSIVE;
+            if ((rv = getaddrinfo(nullptr, config_.port.c_str(), &hints, &servinfo)) != 0) 
+            {
+                std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+                return false;
+            }
+        }	
+        else
+        {
+            if ((rv = getaddrinfo(config_.ip.c_str(), config_.port.c_str(), &hints, &servinfo)) != 0) 
+            {
+                std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+                return false;
+            }
+        }
 
         struct addrinfo *p;
         Socket sockfd;
@@ -221,40 +148,20 @@ private:
             return false;
         }
 
-        // non-blocking
-        if(fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1)
-        {
-            std::cerr << "fcntl failed" << std::endl;
-            return false;
-        }
-        tcp_data_.sockfd = sockfd;
+        tcp_data_.server_sockfd = sockfd;
 
         std::cout << "server initailization done. waiting for connections..." << std::endl;
 
         return true;
     }
 
-    // Maybe is shouldn't be a class method
-    bool kill_dead_processes()
+    // blocking call
+    bool wait_for_client_connection(Socket &new_fd)
     {
-        struct sigaction sa;
-        sa.sa_handler = sigchld_handler; // reap all dead processes
-        sigemptyset(&sa.sa_mask);
-        sa.sa_flags = SA_RESTART;
-        if (sigaction(SIGCHLD, &sa, NULL) == -1) 
-        {
-            perror("sigaction");
-            return false;
-        }
-
-        return true;
-    }
-
-    bool wait_for_connection(Socket &new_fd)
-    {
+        std::cout << "waiting for client ...." << std::endl;
         struct sockaddr_storage their_addr;
         socklen_t sin_size = sizeof their_addr;
-		new_fd = accept(tcp_data_.sockfd, (struct sockaddr *)&their_addr, &sin_size);
+		new_fd = accept(tcp_data_.server_sockfd, (struct sockaddr *)&their_addr, &sin_size);
 		if (new_fd == -1) 
         {
 			perror("accept");
@@ -266,116 +173,8 @@ private:
 			get_in_addr((struct sockaddr *)&their_addr),
 			s, sizeof s);
 		printf("server: got connection from %s\n", s);
+
 		return true;
     }
-
-    void interal_loop()
-    {
-        // loop for new connections
-        while(control::program_exit() == false)
-        {
-            // have a connection!
-            // It is a blocking call
-            Socket new_fd;
-            if(wait_for_connection(new_fd) == false)
-            {
-                std::cout << "no connection. retry" << std::endl;
-                sleep(1);
-                if(control::program_exit())
-                {
-                    break;
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            else
-            {
-                std::cout << "get connection" << std::endl;
-
-                // send data to client
-                // It is a blocking call
-                send_data_in_queue_to_client(new_fd);
-
-                std::cout << "close socket" << std::endl;
-                close(new_fd);
-            }
-        }
-    }
-
-    bool check_socket_connection(Socket connected_client)
-    {
-        int error_code;
-        socklen_t error_code_size = sizeof(error_code);
-        if(getsockopt(connected_client, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size) == -1)
-        {
-            std::cout << "getsockopt failed" << std::endl;
-            return false;
-        }
-        else if(error_code != 0)
-        {
-            std::cout << "error_code: " << error_code << std::endl;
-            return false;
-        }
-
-        return true;
-    }
-
-    void send_data_in_queue_to_client(Socket connected_client)
-    {
-        while(true)
-        {
-            std::unique_lock<std::mutex> lck(mtx);
-            cv.wait(lck);
-
-            if(control::program_exit() == true)
-            {
-                std::cout << "exit send_data_in_queue_to_client loop" << std::endl;
-                break;
-            }
-
-            // connect to socket
-            if(check_socket_connection(connected_client) == false)
-            {
-                break;
-            }
-
-            package_sync::send_control_package(connected_client);
-
-            auto icp_send_function = [&connected_client](char * const data_ptr)
-            {
-                std::cout << "send data by icp::send"  << std::endl;
-
-                int status = sendall(connected_client, data_ptr, CellSizeByte);
-                if(status == -1)
-                {
-                    std::cout << "send failed" << std::endl;
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
-            };
-
-            // send everything in buffer
-            while(buffer_.process(icp_send_function) == true);
-        }
-    }
-
-    // threads comms
-    std::mutex mtx;
-    std::condition_variable cv;
-
-    // data handling thread
-    std::thread data_handing_thread_;
-
-    static constexpr size_t BUFFER_LENGTH {10};
-    CircularBuffer<BUFFER_LENGTH, CellSizeByte> buffer_;
-
-    TcpData tcp_data_;
-
-    TcpServerConfig config_;
 };
 }

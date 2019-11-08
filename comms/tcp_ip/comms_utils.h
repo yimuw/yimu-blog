@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 #include <string.h>
 #include <mutex>   
@@ -11,6 +13,8 @@
 
 namespace comms
 {
+// C programmers are crazy...
+using Socket = int;
 
 #define PRINT_NAME_VAR(x) std::cout << #x << " :" << x << std::endl;
 
@@ -145,7 +149,120 @@ SyncStatus wait_for_control_packge(int socket, char *buf, int &received_data)
     std::cout << "wait_for_control_packge timeout" << std::endl;
     return SyncStatus::timeout;
 }
+
 }
+
+// https://beej.us/guide/bgnet/html//index.html
+bool sendall(int socket, char *buf, int len)
+{
+    SLIENT_COUT_CURRENT_SCOPE;
+
+    int sent = 0;
+    int bytesleft = len;
+    int n = -1;
+
+    const int max_tries = 20;
+    int num_try = 0;
+
+    while(sent < len) 
+    {
+        if(num_try++ > max_tries)
+        {
+            std::cout << "send all time out" << std::endl;
+            return false;
+        }
+
+        n = send(socket, buf+sent, bytesleft, 0);
+        if (n <= 0) 
+        { 
+            std::cout << "send fail, retry" << std::endl;
+
+            continue; 
+        }
+
+        sent += n;
+        bytesleft -= n;
+        PRINT_NAME_VAR(n);
+    }
+    PRINT_NAME_VAR(len);
+    PRINT_NAME_VAR(sent);
+    assert(len == sent);
+    
+    return len == sent;
+}
+
+// https://beej.us/guide/bgnet/html//index.html
+bool recv_all(int socket, char *buf, int want_size_byte)
+{
+    SLIENT_COUT_CURRENT_SCOPE;
+
+    int total = 0;
+    int n = -1;
+    int want = want_size_byte;
+
+    while(total < want_size_byte) 
+    {
+        n = recv(socket, buf + total, want - total, 0);
+        if (n == -1) 
+        { 
+            std::cout << "recv fail" << std::endl;
+            return false;
+        }
+        if(n == 0)
+        {
+            std::cout << "server disconnect" << std::endl;
+            return false;
+        }
+        total += n;
+        std::cout << "recv n bytes: " << n << std::endl; 
+    }
+
+    std::cout << "total :" << total << std::endl;
+
+    assert(want_size_byte == total && "len != total");
+    
+    return true;
+}
+
+void sigchld_handler(int s)
+{
+	(void)s; // quiet unused variable warning
+
+	// waitpid() might overwrite errno, so we save and restore it:
+	int saved_errno = errno;
+
+	while(waitpid(-1, NULL, WNOHANG) > 0);
+
+	errno = saved_errno;
+}
+
+
+// get sockaddr, IPv4 or IPv6:
+void *get_in_addr(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET) {
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+
+bool kill_dead_processes()
+{
+    struct sigaction sa;
+    sa.sa_handler = sigchld_handler; // reap all dead processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) 
+    {
+        perror("sigaction");
+        return false;
+    }
+
+    return true;
+}
+
 
 // Simple circular buffer protected by mutex
 template<size_t BufferLength, size_t CellSizeByte>

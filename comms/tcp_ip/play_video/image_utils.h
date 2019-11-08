@@ -91,3 +91,15 @@ cv::Mat deserialize_cvmat(const char * const serialized_data)
 
 	return res_mat; 
 }
+
+struct VideoPlayControl
+{
+    enum class ControlType : int32_t
+    {
+        none = 0,
+        pause ,
+        play
+    };
+
+    ControlType control = ControlType::none;
+};

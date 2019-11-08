@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -19,119 +21,43 @@
 #include <condition_variable>
 
 #include "comms_utils.h"
+#include "tcp_recv_buffer.h"
+#include "tcp_sent_buffer.h"
+#include "tcp_peer.h"
 
 
 namespace comms
 {
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
-	if (sa->sa_family == AF_INET) {
-		return &(((struct sockaddr_in*)sa)->sin_addr);
-	}
-
-	return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
-// https://beej.us/guide/bgnet/html//index.html
-bool recv_all(int socket, char *buf, int want_size_byte)
-{
-    SLIENT_COUT_CURRENT_SCOPE;
-
-    int total = 0;
-    int n = -1;
-    int want = want_size_byte;
-
-    while(total < want_size_byte) 
-    {
-        n = recv(socket, buf + total, want - total, 0);
-        if (n == -1) 
-        { 
-            std::cout << "recv fail" << std::endl;
-            return false;
-        }
-        if(n == 0)
-        {
-            std::cout << "server disconnect" << std::endl;
-            return false;
-        }
-        total += n;
-        std::cout << "recv n bytes: " << n << std::endl; 
-    }
-
-    std::cout << "total :" << total << std::endl;
-
-    assert(want_size_byte == total && "len != total");
-    
-    return true;
-}
-
-struct TcpClientConfig
-{
-    std::string port;
-    std::string ip;
-};
 
 template<size_t CellSizeByte>
-class TcpClient
+class TcpClient : public TcpPeer
 {
 public:
-    // C programmers are crazy...
-    using Socket = int;
-    struct TcpData
+    TcpClient(const TcpConfig &config)
     {
-        Socket sockfd;
-    };
-
-    TcpClient(const TcpClientConfig &config)
-        : config_(config)
-    {
-    }
-
-    ~TcpClient()
-    {
-        close(tcp_data_.sockfd);
-
-        if(data_handing_thread_.joinable())
-        {
-            std::cout << "joining thread..." << std::endl;
-            data_handing_thread_.join();
-            std::cout << "data_handing_thread joined" << std::endl;
-        }
+        config_ = config;
     }
 
     bool initailize()
     {
-        data_handing_thread_ = std::thread([this]()
+        if(client_socket_initailization() == false)
         {
-            std::cout << "interal_loop start" << std::endl;
-            this->interal_loop();
-            std::cout << "interal_loop end" << std::endl;
-        });
+            return false;
+        }
+
+        if(control::program_exit() == true)
+        {
+            return false;
+        }
+
+        recv_buffer_.start_recv_thread(tcp_data_.connected_sockfd);
 
         std::cout << "initailize done" << std::endl;
         return true;
     }
 
-    bool has_data()
-    {
-        return buffer_.has_data();
-    }
-
-    bool read(char * const target_data_ptr)
-    {
-        auto copy_to_buffer = [&target_data_ptr](char const * const src_data_ptr)
-        {
-            memcpy(target_data_ptr, src_data_ptr, CellSizeByte);
-            return true;
-        };
-
-        const bool status = buffer_.process(copy_to_buffer);
-        return status;
-    }
-
 private:
-    bool socket_initailization()
+    bool client_socket_initailization()
     {
         int sockfd;
         struct addrinfo hints, *servinfo, *p;
@@ -174,90 +100,9 @@ private:
 
         freeaddrinfo(servinfo); // all done with this structure
 
-        tcp_data_.sockfd = sockfd;
+        tcp_data_.connected_sockfd = sockfd;
 
         return true;
     }
-
-    void interal_loop()
-    {
-        // loop for new connections
-        while(control::program_exit() == false)
-        {
-            if(socket_initailization() == false)
-            {
-                break;
-            }
-            
-            recv_data_and_write_to_queue(tcp_data_.sockfd);
-            close(tcp_data_.sockfd);
-            std::cout << "lost connection, retry..." << std::endl;
-            sleep(1);
-        }
-    }
-
-    // TODO: how to do it on client side? current handled by n = recv 
-    bool check_socket_connection(Socket connected_client)
-    {
-        return true;
-    }
-
-    void recv_data_and_write_to_queue(Socket connected_client)
-    {
-        // TODO: super large array in stack is not good.
-        char buf[CellSizeByte];
-
-        while(true)
-        {
-            if(control::program_exit() == true)
-            {
-                std::cout << "exit send_data_in_queue_to_client loop" << std::endl;
-                break;
-            }
-
-            // connect to socket
-            if(check_socket_connection(connected_client) == false)
-            {
-                break;
-            }
-
-            int received_data = 0;
-            namespace sync = comms::package_sync;
-            sync::SyncStatus status = sync::wait_for_control_packge(connected_client, buf, received_data);
-            if(status == sync::SyncStatus::success)
-            {
-                const int rest_bytes = CellSizeByte - received_data;
-                assert(rest_bytes >= 0);
-                if(rest_bytes > 0)
-                {
-                    bool recv_status = recv_all(connected_client, buf + received_data, 
-                        CellSizeByte - received_data);
-                    if (recv_status == false)
-                    {
-                        perror("recv_all failed");
-                        std::cerr << "recv_all failed" << std::endl;
-                        break;
-                    }
-                }
-    
-                // TODO: not efficient. Do one copy.
-                buffer_.write(buf);
-            }
-            else if(status == sync::SyncStatus::failure)
-            {
-                break;
-            }
-            
-        }
-    }
-
-    // data handling thread
-    std::thread data_handing_thread_;
-
-    static constexpr size_t BUFFER_LENGTH {10};
-    CircularBuffer<BUFFER_LENGTH, CellSizeByte> buffer_;
-
-    TcpData tcp_data_;
-    TcpClientConfig config_;
 };
 }
