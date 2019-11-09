@@ -75,7 +75,7 @@ public:
         {
             // TODO: deserialize on the fly
             message::deserialize<RecvMessageType>(buffer, message);
-            return false;
+            return true;
         }
     }
 

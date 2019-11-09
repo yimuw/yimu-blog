@@ -1,80 +1,29 @@
 #include "../tcp_client.h"
-#include "image_utils.h"
+#include "messages_types.h"
 
 using namespace comms;
-
-constexpr size_t IMAGE_SIZE_BYTE = 995340;
-const auto ip = "192.168.1.9";
-const auto port = "3490";
-
-struct ImageReceiver
-{
-    using image_client = TcpClient<IMAGE_SIZE_BYTE>;
-
-    ImageReceiver()
-    {
-        TcpClientConfig tcp_config{port, ip};
-        tcp_client_ptr = std::make_shared<image_client>(tcp_config);
-
-        tcp_client_ptr->initailize();
-    }
-
-    bool has_data()
-    {
-        return tcp_client_ptr->has_data();
-    }
-
-    cv::Mat get_mat()
-    {
-        std::vector<char> serialized_image(IMAGE_SIZE_BYTE);
-		tcp_client_ptr->read(&serialized_image[0]);
-		cv::Mat image = deserialize_cvmat(&serialized_image[0]);
-        return image;
-    }
-
-    void receive_and_display_images()
-    {
-        cv::namedWindow("image from tcp", cv::WINDOW_AUTOSIZE );
-        while(control::program_exit() == false)
-        {
-            if(has_data())
-            {
-                cv::Mat image = get_mat();
-                
-                cv::imshow("image from tcp", image);
-                cv::waitKey(1);
-            }
-
-            if(control::program_exit() == true)
-            {
-                break;
-            }
-
-            // polling
-            usleep(50);
-        }
-    }
-
-    std::shared_ptr<image_client> tcp_client_ptr;
-};
-
 
 int main(void)
 {
     control::set_gracefully_exit();
 
-    ImageReceiver image_receiver;
+    TcpConfig tcp_config{"3491", "yimu-mate"};
+    TcpClient<message::VideoControl, message::Frame> tcp_client(tcp_config);
+    tcp_client.initailize();
 
-    std::thread receive_and_display_images([&image_receiver]()
+    while(control::program_exit() == false)
     {
-        image_receiver.receive_and_display_images();
-    });
-
-    if(receive_and_display_images.joinable())
-    {
-        receive_and_display_images.join(); 
+        message::Frame frame;
+        if(tcp_client.recv_from_peer(frame))
+        {
+            std::cout << "recv image id: " << frame.frame_id << std::endl;
+            cv::imshow("image from tcp", frame.image);
+            cv::waitKey(1);
+        }
+        
+        usleep(1000);
     }
-    
+
     control::quit = true;
     exit(0);
 }

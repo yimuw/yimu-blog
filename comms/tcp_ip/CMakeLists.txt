@@ -1,2 +1,2 @@
 add_subdirectory(send_number)
-# add_subdirectory(play_video)
+add_subdirectory(play_video)

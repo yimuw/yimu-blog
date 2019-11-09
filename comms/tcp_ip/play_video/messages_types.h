@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <opencv2/opencv.hpp>
+#include "../comms_utils.h"
 
 
 struct ImageIO
@@ -92,7 +93,51 @@ cv::Mat deserialize_cvmat(const char * const serialized_data)
 	return res_mat; 
 }
 
-struct VideoPlayControl
+namespace comms
+{
+namespace message
+{
+/////////////////////////////////////////////////////////////
+struct Frame
+{
+    int32_t frame_id;
+    cv::Mat image;
+};
+
+
+// Assuming fixed size image
+constexpr size_t TEST_IMAGE_SIZE = 995340;
+
+template<>   // primary template
+constexpr size_t size_of_message<Frame>()
+{
+    return sizeof(int32_t) + TEST_IMAGE_SIZE;
+}
+
+template<>
+void serialize<Frame>(const Frame &obj, char * const buffer)
+{
+    // assume same platform
+    // 1. frame_id
+    memcpy(buffer, &obj.frame_id, sizeof(obj.frame_id));
+    // 2. cv::mat
+    // TODO: not efficient
+    const std::vector<char> mat_serialized = serialize_cvmat(obj.image);
+    assert(mat_serialized.size() == TEST_IMAGE_SIZE);
+    memcpy(buffer + sizeof(obj.frame_id), &mat_serialized[0], sizeof(char) * mat_serialized.size());
+}
+
+template<>
+void deserialize<Frame>(char const * const buffer, Frame &obj)
+{
+    // assume same platform
+    // 1. frame_id
+    memcpy(&obj.frame_id, buffer, sizeof(obj.frame_id));
+    // 2. cv::mat
+    obj.image = deserialize_cvmat(buffer + sizeof(obj.frame_id));
+}
+/////////////////////////////////////////////////////////////
+struct VideoControl
 {
     enum class ControlType : int32_t
     {
@@ -103,3 +148,26 @@ struct VideoPlayControl
 
     ControlType control = ControlType::none;
 };
+
+template<>   // primary template
+constexpr size_t size_of_message<VideoControl>()
+{
+    return sizeof(VideoControl);
+}
+
+template<>
+void serialize<VideoControl>(const VideoControl &obj, char * const buffer)
+{
+    // assume same platform
+    memcpy(buffer, &obj, sizeof(double));
+}
+
+template<>
+void deserialize<VideoControl>(char const * const buffer, VideoControl &obj)
+{
+    // assume same platform
+    memcpy(&obj, buffer, sizeof(double));
+}
+
+}
+}
