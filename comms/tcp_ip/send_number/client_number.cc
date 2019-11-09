@@ -10,7 +10,7 @@ int main(void)
 
     TcpConfig tcp_config{"3491", "yimu-mate"};
 
-    TcpClient<int32_t> tcp_client(tcp_config);
+    TcpClient<int32_t, double> tcp_client(tcp_config);
 
     if(tcp_client.initailize() == false)
     {
@@ -24,7 +24,7 @@ int main(void)
         std::cout << "publish int: " << i << std::endl; 
         tcp_client.send_to_peer(i);
 
-        int received_value = -1;
+        double received_value = -1;
         while(tcp_client.recv_from_peer(received_value))
         {
             std::cout << "received: " << received_value << std::endl;

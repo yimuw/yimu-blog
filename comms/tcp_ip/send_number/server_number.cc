@@ -9,14 +9,14 @@ int main(void)
 
     TcpConfig tcp_config{"3491", "AI_PASSIVE"};
 
-    TcpServer<int32_t> tcp_server(tcp_config);
+    TcpServer<double, int32_t> tcp_server(tcp_config);
 
     if(tcp_server.initailize() == false)
     {
         return 0;
     }
 
-    for(int32_t i = 0; i < 1000; ++i)
+    for(double i = 0; i < 1000; i += 0.5)
     {
         usleep(200 * 1e3);
 

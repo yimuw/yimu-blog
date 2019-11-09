@@ -29,13 +29,13 @@
 namespace comms
 {
 
-template<typename MessageType>
-class TcpServer : public TcpPeer<MessageType>
+template<typename SendMessageType, typename RecvMessageType>
+class TcpServer : public TcpPeer<SendMessageType, RecvMessageType>
 {
     // for templated inherentance
-    using TcpPeer<MessageType>::config_;
-    using TcpPeer<MessageType>::recv_buffer_;
-    using TcpPeer<MessageType>::tcp_data_;
+    using TcpPeer<SendMessageType, RecvMessageType>::config_;
+    using TcpPeer<SendMessageType, RecvMessageType>::recv_buffer_;
+    using TcpPeer<SendMessageType, RecvMessageType>::tcp_data_;
 public:
     TcpServer(const TcpConfig &config)
     {
