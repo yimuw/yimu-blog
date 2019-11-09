@@ -1,3 +1,4 @@
+#include "message_types.h"
 #include "../tcp_client.h"
 
 
@@ -9,23 +10,22 @@ int main(void)
 
     TcpConfig tcp_config{"3491", "yimu-mate"};
 
-    constexpr size_t MESSAGE_SIZE_BYTE = sizeof(int);
-    TcpClient<MESSAGE_SIZE_BYTE> tcp_client(tcp_config);
+    TcpClient<int32_t> tcp_client(tcp_config);
 
     if(tcp_client.initailize() == false)
     {
         return 0;
     }
 
-    for(int i = 1000; i < 2000; ++i)
+    for(int32_t i = 1000; i < 2000; ++i)
     {
         usleep(1500 * 1e3);
 
         std::cout << "publish int: " << i << std::endl; 
-        tcp_client.send_to_peer(cast_to_char_ptr(&i));
+        tcp_client.send_to_peer(i);
 
         int received_value = -1;
-        while(tcp_client.recv_from_peer(cast_to_char_ptr(&received_value)))
+        while(tcp_client.recv_from_peer(received_value))
         {
             std::cout << "received: " << received_value << std::endl;
         }

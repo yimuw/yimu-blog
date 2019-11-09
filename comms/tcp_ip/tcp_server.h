@@ -29,9 +29,13 @@
 namespace comms
 {
 
-template<size_t CellSizeByte>
-class TcpServer : public TcpPeer
+template<typename MessageType>
+class TcpServer : public TcpPeer<MessageType>
 {
+    // for templated inherentance
+    using TcpPeer<MessageType>::config_;
+    using TcpPeer<MessageType>::recv_buffer_;
+    using TcpPeer<MessageType>::tcp_data_;
 public:
     TcpServer(const TcpConfig &config)
     {

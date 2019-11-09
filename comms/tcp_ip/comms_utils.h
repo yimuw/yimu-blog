@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <string.h>
 #include <mutex>   
 #include <assert.h>
 #include <iostream>
@@ -10,6 +9,24 @@
 #include <unistd.h>
 #include <cstring>
 #include <atomic>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+#include <string>
+#include <iostream>
+#include <thread>             
 
 namespace comms
 {
@@ -337,4 +354,30 @@ private:
 
     std::vector<Cell> buffer_ = std::vector<Cell>(BufferLength);
 };
+
+
+namespace message
+{
+
+template<typename T>   // primary template
+constexpr size_t size_of_message()
+{
+    assert(false && strcat("template specification not implement for",typeid(T).name()));
+    return 0;
+}
+
+template<typename T>
+void serialize(const T &obj, char * const buffer)
+{
+    assert(false && strcat("template specification not implement for",typeid(T).name()));
+}
+
+template<typename T>
+void deserialize(char const * const buffer, T &obj)
+{
+    assert(false && strcat("template specification not implement for",typeid(T).name()));  
+}
+
+}
+
 }

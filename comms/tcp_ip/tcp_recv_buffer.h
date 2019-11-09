@@ -30,6 +30,15 @@ template<size_t CellSizeByte>
 class TcpRecvBuffer
 {
 public:
+    ~TcpRecvBuffer()
+    {
+        if(recv_thread_.joinable())
+        {
+            std::cout << "joining recv_thread_" << std::endl;
+            recv_thread_.join();
+        }
+    }
+
     bool read(char * const target_data_ptr)
     {
         if(has_data() == false)

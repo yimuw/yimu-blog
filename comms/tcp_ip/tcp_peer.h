@@ -42,7 +42,7 @@ struct TcpConfig
     std::string ip;
 };
 
-// template<size_t CellSizeByte>
+template<typename MessageType>
 class TcpPeer
 {
 public:
@@ -53,19 +53,34 @@ public:
         close(tcp_data_.connected_sockfd);
     }
 
-    bool send_to_peer(char const * const data_ptr)
+    bool send_to_peer(const MessageType &message)
     {
-        return send_buffer_.write_to_buff_and_trige_send(data_ptr, tcp_data_.connected_sockfd);
+        // TODO: direct serialize to send buffer
+        char buffer[message::size_of_message<MessageType>()];
+        message::serialize<MessageType>(message, buffer);
+
+        return send_buffer_.write_to_buff_and_trige_send(buffer, tcp_data_.connected_sockfd);
     }
 
     // actual recv is handled by a background thread.
-    bool recv_from_peer(char * const target_data_ptr)
+    bool recv_from_peer(MessageType &message)
     {
-        return recv_buffer_.read(target_data_ptr);
+        char buffer[message::size_of_message<MessageType>()];
+        bool status = recv_buffer_.read(buffer);
+        if(status == false)
+        {
+            return false;
+        }
+        else
+        {
+            // TODO: deserialize on the fly
+            message::deserialize<MessageType>(buffer, message);
+            return false;
+        }
     }
 
-    TcpRecvBuffer<sizeof(int)> recv_buffer_;
-    TcpSentBuffer<sizeof(int)> send_buffer_;
+    TcpRecvBuffer<message::size_of_message<MessageType>()> recv_buffer_;
+    TcpSentBuffer<message::size_of_message<MessageType>()> send_buffer_;
 
     TcpData tcp_data_;
     TcpConfig config_;
