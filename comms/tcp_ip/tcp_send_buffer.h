@@ -27,7 +27,7 @@ namespace comms
 {
 
 template<size_t CellSizeByte>
-class TcpSentBuffer
+class TcpSendBuffer
 {
 public:
     // Copy to buffer, and trige tcp send.

@@ -1,5 +1,6 @@
 #pragma once
 
+// TODO: need a linter
 #include <vector>
 #include <mutex>   
 #include <assert.h>
@@ -9,13 +10,11 @@
 #include <unistd.h>
 #include <cstring>
 #include <atomic>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -23,9 +22,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
-
 #include <string>
-#include <iostream>
 #include <thread>             
 
 namespace comms
@@ -66,6 +63,7 @@ char * cast_to_char_ptr(T * const ptr)
 }
 
 // TODO: class
+// These functions make sure class get destructive whenever ctrl+c get pressed.
 namespace control
 {
 std::atomic<bool> quit(false);    // signal flag
@@ -93,6 +91,7 @@ bool program_exit()
 // Handing ICP data packging 
 // e.g. server: send(100byte), send(100byte)
 //      client: 20byte = recv(), 110byte = recv(), 70byte = recv
+// The protocol is simplely a sperator for each message. 
 namespace package_sync
 {
 char control_string[] = "I am just some magic number. like 123456789. \
@@ -121,6 +120,7 @@ enum class SyncStatus
     timeout
 };
 
+// Wait for the header
 SyncStatus wait_for_control_packge(int socket, char *buf, int &received_data)
 {
     // TODO: doesn't work if TCP decide to break control message into 2 receive.
@@ -289,7 +289,7 @@ public:
     using Byte = char;
     struct Cell
     {
-        // a mutex to protect each cell
+        // a mutex to protect each cell for better concurrency.
         std::mutex mtx;
         Byte blob[CellSizeByte];
     };
@@ -321,6 +321,7 @@ public:
         return true;
     }
 
+    // it is read and operation on read data.
     template<typename ProcessFunction>
     bool process(ProcessFunction &process_function)
     {
@@ -356,6 +357,7 @@ private:
 };
 
 
+// Using template specification for each message type
 namespace message
 {
 

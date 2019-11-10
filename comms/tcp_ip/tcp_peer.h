@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -13,7 +12,6 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
-
 #include <string>
 #include <iostream>
 #include <thread>             
@@ -22,7 +20,7 @@
 
 #include "comms_utils.h"
 #include "tcp_recv_buffer.h"
-#include "tcp_sent_buffer.h"
+#include "tcp_send_buffer.h"
 
 
 namespace comms
@@ -80,7 +78,7 @@ public:
     }
 
     TcpRecvBuffer<message::size_of_message<RecvMessageType>()> recv_buffer_;
-    TcpSentBuffer<message::size_of_message<SendMessageType>()> send_buffer_;
+    TcpSendBuffer<message::size_of_message<SendMessageType>()> send_buffer_;
 
     TcpData tcp_data_;
     TcpConfig config_;

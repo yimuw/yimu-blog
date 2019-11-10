@@ -21,8 +21,6 @@
 #include <condition_variable>
 
 #include "comms_utils.h"
-#include "tcp_recv_buffer.h"
-#include "tcp_sent_buffer.h"
 #include "tcp_peer.h"
 
 

@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -13,7 +12,6 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
-
 #include <string>
 #include <iostream>
 #include <thread>             
@@ -21,8 +19,6 @@
 #include <condition_variable>
 
 #include "comms_utils.h"
-#include "tcp_recv_buffer.h"
-#include "tcp_sent_buffer.h"
 #include "tcp_peer.h"
 
 

@@ -61,6 +61,7 @@ public:
         return status;
     }
 
+    // recv is handled by a background thread.
     void start_recv_thread(Socket connected_socket)
     {
         recv_thread_ = std::thread(
