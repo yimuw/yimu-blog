@@ -3,13 +3,39 @@
 
 using namespace comms;
 
+void get_keybroad_input()
+{
+    // detect enter
+    while(getchar() != '\n');
+    std::cout << "get keybroad enter"  << std::endl;
+}
+
+
 int main(void)
 {
     control::set_gracefully_exit();
 
     TcpConfig tcp_config{"3491", "yimu-mate"};
     TcpClient<message::VideoControl, message::Frame> tcp_client(tcp_config);
-    tcp_client.initailize();
+    if(tcp_client.initailize() == false)
+    {
+        return 0;
+    }
+
+    // TODO: capture tcp_client is not safe.
+    // TODO: getchar block control::program_exit()
+    std::thread keybroad_input_thread(
+        [&tcp_client]()
+        {
+            while(control::program_exit() == false)
+            {
+                get_keybroad_input();
+                message::VideoControl control;
+                control.control = message::VideoControl::ControlType::change_status;
+                tcp_client.send_to_peer(control);
+            }
+        }
+    );
 
     while(control::program_exit() == false)
     {
@@ -24,6 +50,5 @@ int main(void)
         usleep(1000);
     }
 
-    control::quit = true;
-    exit(0);
+    keybroad_input_thread.join();
 }

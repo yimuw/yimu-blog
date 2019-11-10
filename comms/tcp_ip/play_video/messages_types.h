@@ -142,8 +142,8 @@ struct VideoControl
     enum class ControlType : int32_t
     {
         none = 0,
-        pause ,
-        play
+        // pause if video is playing, resume if video is paused
+        change_status
     };
 
     ControlType control = ControlType::none;
@@ -159,14 +159,14 @@ template<>
 void serialize<VideoControl>(const VideoControl &obj, char * const buffer)
 {
     // assume same platform
-    memcpy(buffer, &obj, sizeof(double));
+    memcpy(buffer, &obj, sizeof(VideoControl));
 }
 
 template<>
 void deserialize<VideoControl>(char const * const buffer, VideoControl &obj)
 {
     // assume same platform
-    memcpy(&obj, buffer, sizeof(double));
+    memcpy(&obj, buffer, sizeof(VideoControl));
 }
 
 }
