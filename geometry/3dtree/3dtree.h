@@ -93,8 +93,6 @@ struct TreeIndex
     TreeIndex(int start_idx, int end_idx, int depth)
         : start_index(start_idx), end_index(end_idx), tree_depth(depth)
     {
-        // mid point is pivot 
-        pivot_index = (start_index + end_index) / 2;
     }
 
     bool empty() const
@@ -102,23 +100,72 @@ struct TreeIndex
         return start_index == end_index;
     }
 
-    int pivot_index = {0};
     // [start_index, end_index), because of std::sort
     int start_index = {0};
     int end_index = {0};
     int tree_depth = {0};
 };
 
-inline void pivot_tree(const TreeIndex &current_tree_index,
-                TreeIndex &left_tree,
-                TreeIndex &right_tree)
+inline std::ostream& operator<<(std::ostream& os, const TreeIndex& tree_index)
 {
+    os << "depth: " << tree_index.tree_depth << " si:" << tree_index.start_index 
+            << " ei:" << tree_index.end_index;
+    return os;
+}
+
+
+inline void pivot_tree(const TreeIndex &current_tree_index,
+                       const int pivot_index,
+                       TreeIndex &left_tree,
+                       TreeIndex &right_tree)
+{
+    assert(pivot_index >= current_tree_index.start_index);
+    assert(pivot_index <= current_tree_index.end_index);
     // [start, pivot)
-    left_tree = {current_tree_index.start_index, current_tree_index.pivot_index, 
+    left_tree = {current_tree_index.start_index, pivot_index, 
         current_tree_index.tree_depth + 1};
     // [pivot, end)
-    right_tree = {current_tree_index.pivot_index, current_tree_index.end_index, 
+    right_tree = {pivot_index, current_tree_index.end_index, 
         current_tree_index.tree_depth + 1};
+}
+
+
+// Move elements smaller than value to the front of the vector
+// feels like a famous leetcode problem
+inline void partition_vector(const int pivot_dim,
+                            const TreeIndex &current_tree_index,
+                            std::vector<Point3d> &data,
+                            int &partition_index,
+                            float& pivot_value)
+{
+    const int len = current_tree_index.end_index - current_tree_index.start_index;
+
+    const int offset = current_tree_index.start_index;
+    int i = -1,j = -1;
+    for(i = 0, j = len -1; i != j;)
+    {
+        if(data.at(offset + i)[pivot_dim] > pivot_value)
+        {
+            std::swap(data[offset + i], data[offset + j]);
+            --j;
+        }
+        else
+        {
+            ++i;
+        }
+    }
+    partition_index = i + offset;
+    assert(partition_index >= current_tree_index.start_index);
+    assert(partition_index < current_tree_index.end_index);
+
+    // Edge case
+    if(partition_index == current_tree_index.start_index 
+        || partition_index == current_tree_index.end_index)
+    {
+        partition_index = (current_tree_index.start_index + current_tree_index.end_index) / 2;
+        pivot_value = data.at(partition_index)[pivot_dim];
+        partition_vector(pivot_dim, current_tree_index, data, partition_index, pivot_value);
+    }    
 }
 
 struct Hyperrectangle3d
@@ -148,28 +195,30 @@ private:
     std::vector<float> mins = std::vector<float>(3, MAX_FLOAT);
 };
 
-    Hyperrectangle3d compute_bounding_box(const std::vector<Point3d> &points)
+Hyperrectangle3d compute_bounding_box(const std::vector<Point3d> &points)
+{
+    Hyperrectangle3d result;
+    for(const auto &p : points)
     {
-        Hyperrectangle3d result;
-        for(const auto &p : points)
+        for(size_t point_dim = 0; point_dim < 3; ++point_dim)
         {
-            for(size_t point_dim = 0; point_dim < 3; ++point_dim)
-            {
-                result.max_for_dim_i(point_dim) 
-                    = std::max(result.max_for_dim_i(point_dim), p[point_dim]);
-                result.min_for_dim_i(point_dim) 
-                    = std::min(result.min_for_dim_i(point_dim), p[point_dim]);
-            }
+            result.max_for_dim_i(point_dim) 
+                = std::max(result.max_for_dim_i(point_dim), p[point_dim]);
+            result.min_for_dim_i(point_dim) 
+                = std::min(result.min_for_dim_i(point_dim), p[point_dim]);
         }
-        return result;
     }
+    return result;
+}
 
 inline void pivot_bounding_box(const Hyperrectangle3d &current_bbox,
                         const int dim_to_pivot,
                         const float pivot_value,
+                        const int pivot_index,
                         Hyperrectangle3d &left_bbox,
                         Hyperrectangle3d &right_bbox)
 {
+
     left_bbox = current_bbox;
     left_bbox.max_for_dim_i(dim_to_pivot) = pivot_value;
 
@@ -177,7 +226,7 @@ inline void pivot_bounding_box(const Hyperrectangle3d &current_bbox,
     right_bbox.min_for_dim_i(dim_to_pivot) = pivot_value;
 }
 
-float distance_square_bbox_to_point(const Hyperrectangle3d &bbox,
+inline float distance_square_bbox_to_point(const Hyperrectangle3d &bbox,
                                     const Point3d &target)
 {
     Point3d closest_point_in_bbox;
@@ -242,6 +291,24 @@ public:
         build_tree_recursive(kdtree_root_);
     }
 
+    void find_pivot(const utils::Hyperrectangle3d &bbox,
+                    int &pivot_dim,
+                    float &pivot_value)
+    {
+        float max_diff = MIN_FLOAT;
+        for(int dim = 0; dim < 3; ++dim)
+        {
+            float diff = bbox.max_for_dim_i(dim) - bbox.min_for_dim_i(dim);
+            assert(diff >= 0);
+            if(diff > max_diff)
+            {
+                max_diff = diff;
+                pivot_dim = dim;
+                pivot_value = diff / 2;
+            }
+        }
+    }
+
     void build_tree_recursive(std::shared_ptr<TreeNode> &tree_node_ptr)
     {
         assert(tree_node_ptr != nullptr);
@@ -254,24 +321,24 @@ public:
             tree_node_ptr->is_leaf = true;
             return;
         }
-        
-        const int dim = tree_index.tree_depth % 3;
 
-        std::sort(kdtree_data_.begin() + tree_index.start_index, 
-                  kdtree_data_.begin() + tree_index.end_index,
-                  [dim](const Point3d &p1, const Point3d &p2)
-                  {
-                      return p1[dim] < p2[dim];
-                  });
+        std::cout << "depth: " << tree_index.tree_depth << " si:" << tree_index.start_index 
+            << " ei:" << tree_index.end_index << std::endl; 
 
-        const float pivot_value = kdtree_data_.at(tree_index.pivot_index)[dim];
+        int pivot_dim = -1;
+        int pivot_index = -1;
+        float pivot_value = -1;
+        find_pivot(tree_node_ptr->tree_bounding_box, pivot_dim, pivot_value);
+        utils::partition_vector(pivot_dim, tree_index, 
+            kdtree_data_, pivot_index, pivot_value);
+        std::cout << "pivot_index" << pivot_index << std::endl;
 
         utils::TreeIndex left_tree, right_tree;
         utils::Hyperrectangle3d left_bbox, right_bbox;
-        pivot_tree(tree_index, left_tree, right_tree);
-        pivot_bounding_box(tree_node.tree_bounding_box, dim, pivot_value,
+        pivot_tree(tree_index, pivot_index, left_tree, right_tree);
+        pivot_bounding_box(tree_node.tree_bounding_box, pivot_dim, pivot_value, pivot_index,
             left_bbox, right_bbox);
-        tree_node_ptr->dim = dim;
+        tree_node_ptr->dim = pivot_dim;
         tree_node_ptr->pivot_value = pivot_value;
 
         // TODO: Can be parallelize since left and right doesn't intersect.
@@ -288,14 +355,14 @@ public:
 
         if(false)
         {
-            for(int i = tree_index.start_index; i < tree_index.pivot_index; ++i)
-            {
-                assert(kdtree_data_[i][dim] <= pivot_value);
-            }
-            for(int i = tree_index.pivot_index; i < tree_index.end_index; ++i)
-            {
-                assert(kdtree_data_[i][dim] >= pivot_value);
-            }
+            // for(int i = tree_index.start_index; i < tree_index.pivot_index; ++i)
+            // {
+            //     assert(kdtree_data_[i][dim] <= pivot_value);
+            // }
+            // for(int i = tree_index.pivot_index; i < tree_index.end_index; ++i)
+            // {
+            //     assert(kdtree_data_[i][dim] >= pivot_value);
+            // }
         }
     }
 

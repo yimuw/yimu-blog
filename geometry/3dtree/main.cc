@@ -41,7 +41,7 @@ int main()
 {
     PointCloud<float> cloud;
 	// Generate points:
-	generateRandomPointCloud(cloud, 10000);
+	generateRandomPointCloud(cloud, 100);
 
     std::vector<geometry::Point3d> my_points = convert_to_my_point(cloud);
 
@@ -53,7 +53,7 @@ int main()
 
     {
         Profiler p("nearst_neighbor_search_recursive");
-        for(int i = 0; i < 5000; ++i)
+        for(int i = 0; i < 10; ++i)
         {
             geometry::Point3d target = my_points[i];
             target.x += 0.2;
@@ -86,7 +86,7 @@ int main()
 
         {
             Profiler p("findNeighbors");
-            for(int i = 0; i < 5000; ++i)
+            for(int i = 0; i < 10; ++i)
             {
                 geometry::Point3d target = my_points[i];
                 target.x += 0.2;
