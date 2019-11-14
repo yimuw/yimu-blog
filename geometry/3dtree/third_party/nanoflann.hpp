@@ -860,6 +860,7 @@ public:
     NodePtr node = obj.pool.template allocate<Node>(); // allocate memory
 
     /* If too few exemplars remain, then make this a leaf node. */
+    assert(obj.m_leaf_max_size == 1);
     if ((right - left) <= static_cast<IndexType>(obj.m_leaf_max_size)) {
       node->child1 = node->child2 = NULL; /* Mark as leaf node. */
       node->node_type.lr.left = left;
@@ -1343,10 +1344,13 @@ public:
    * \return true if the search should be continued, false if the results are
    * sufficient
    */
+  public:
+    mutable int searchLevel_called = 0;
   template <class RESULTSET>
   bool searchLevel(RESULTSET &result_set, const ElementType *vec,
                    const NodePtr node, DistanceType mindistsq,
                    distance_vector_t &dists, const float epsError) const {
+    searchLevel_called++;
     /* If this is a leaf node, then do check and return. */
     if ((node->child1 == NULL) && (node->child2 == NULL)) {
       // count_leaf += (node->lr.right-node->lr.left);  // Removed since was

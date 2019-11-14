@@ -41,7 +41,7 @@ int main()
 {
     PointCloud<float> cloud;
 	// Generate points:
-	generateRandomPointCloud(cloud, 10000);
+	generateRandomPointCloud(cloud, 100000);
 
     std::vector<geometry::Point3d> my_points = convert_to_my_point(cloud);
 
@@ -52,13 +52,17 @@ int main()
     }
 
     {
+        geometry::ThreeDimTree::NearestNeightResult res;
         Profiler p("nearst_neighbor_search_recursive");
-        for(int i = 0; i < 5000; ++i)
+        for(int i = 0; i < 100000; ++i)
         {
             geometry::Point3d target = my_points[i];
-            target.x += 0.2;
-            tree3d.nearst_neighbor_search_recursive(target);
+            target.x -= 0.2;
+            res = tree3d.nearst_neighbor_search_recursive(target);
+            // std::cout << "dist: " << res.distance_square << std::endl;
         }
+        std::cout << "dist: " << res.distance_square << std::endl;
+        std::cout << "recursive called" << tree3d.nearst_neighbor_search_recursive_called << std::endl;
     }
 
 
@@ -77,22 +81,27 @@ int main()
     }
 
 	{
-		// do a knn search
-		const size_t num_results = 1;
-		size_t ret_index;
-		float out_dist_sqr;
-		nanoflann::KNNResultSet<float> resultSet(num_results);
-		resultSet.init(&ret_index, &out_dist_sqr );
-
         {
             Profiler p("findNeighbors");
-            for(int i = 0; i < 5000; ++i)
+            float out_dist_sqr;
+            // do a knn search
+            const size_t num_results = 1;
+            size_t ret_index;
+            nanoflann::KNNResultSet<float> resultSet(num_results);
+
+            for(int i = 0; i < 100000; ++i)
             {
                 geometry::Point3d target = my_points[i];
-                target.x += 0.2;
+                target.x -= 0.2;
+
+                resultSet.init(&ret_index, &out_dist_sqr );
                 float query_pt[3] = {target.x, target.y, target.z};
                 index.findNeighbors(resultSet, &query_pt[0], nanoflann::SearchParams());
+                // std::cout << "dist: " << out_dist_sqr << std::endl;
             }
+            std::cout << "out_dist_sqr: " << out_dist_sqr << std::endl;
+            std::cout << "index.searchLevel_called: " << index.searchLevel_called << std::endl;
+
         }
 	}
 
