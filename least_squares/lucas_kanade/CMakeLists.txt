@@ -6,8 +6,6 @@ set(CMAKE_BUILD_TYPE Debug)
 project(lucas-kanada)
 find_package( OpenCV REQUIRED )
 
-add_executable(lucas-kanada main.cpp)
-target_link_libraries(lucas-kanada
-                      ${OpenCV_LIBS})
-
+add_subdirectory(lk_translation2d)
+add_subdirectory(lk_se2)
 
