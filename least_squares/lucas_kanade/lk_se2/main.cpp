@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 {
     RotationRectSimulator imageio;
 
-    LucasKanadaTracker lk_tracker;
+    LucasKanadaTrackerSE2 lk_tracker;
 
     while(imageio.has_more())
     {
