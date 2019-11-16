@@ -6,28 +6,48 @@
 
 #define PRINT_NAME_VAR(var) std::cout << #var << " :" << var << std::endl;
 
-// residual r(dx, dy) = im2(x + dx, y + dy) - im1(x, y) 
-//
-// residual r(d)
+
 class LucasKanadaTrackerSE2
 {
 public:
-    LucasKanadaTrackerSE2()
+    // Basically, it is the se2 associated with SE2
+    struct Velocity
     {
-    }
+        float theta = 0;
+        float x = 0;
+        float y = 0;
+
+        Velocity add(const Velocity &v) const
+        {
+            return {theta + v.theta, x + v.x, y + v.y};
+        }
+
+        Velocity neg() const
+        {
+            return {-theta, -x, -y};
+        }
+
+        cv::Point2f apply(const cv::Point2d &p1) const
+        {
+            cv::Point2f p2;
+            const float sint = std::sin(theta);
+            const float cost = std::cos(theta);
+            p2.x = cost * p1.x - sint * p1.y + x;
+            p2.y = sint * p1.x + cost * p1.y + y;
+            return p2;
+        }
+        
+        void print() const 
+        { 
+            std::cout << "theta:" << theta << " x:" << x << " y:" << y << std::endl;
+        } 
+    };
 
     void track(const cv::Mat &cur_im_in)
     {
         cv::Mat cur_im = cur_im_in.clone();
-        // Same as apply spline in the optimization problem.
-        // TODO: prove it
-        constexpr bool APPLY_SPLINE = false;
-        if(APPLY_SPLINE)
-        {
-            cv::GaussianBlur( cur_im_in, cur_im, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
-        }
 
-        if(cur_features_locations_.size() < 50)
+        if(cur_features_locations_.size() == 0)
         {
             std::cout << "clear and detect features..." << std::endl;
             clear_and_detect_features(cur_im_in);
@@ -38,24 +58,17 @@ public:
         }
         else
         {
-            assert(cur_features_locations_.size() == cur_features_velocities_.size());
-
             std::vector<cv::Point2f> new_features_locations;
-            std::vector<cv::Point2f> new_velocities;
 
             for(size_t i = 0; i < cur_features_locations_.size(); i++)
             {
-                if(feature_within_image(cur_features_locations_.at(i)) // cur image inbound
-                    // last image inbound
-                    and feature_within_image(cur_features_locations_.at(i) + cur_features_velocities_.at(i)))
+                if(feature_within_image(cur_features_locations_.at(i)))
                 {
-                    cv::Point2f new_velocity = lucas_kanada_least_sqaures(cur_features_velocities_.at(i), 
-                                                                        cur_features_locations_.at(i), 
-                                                                        cur_im);
-                    // We can filter by Hessain here.
-                    new_velocities.push_back(new_velocity);
-                    new_features_locations.emplace_back(cur_features_locations_[i].x - new_velocity.x, 
-                                            cur_features_locations_[i].y - new_velocity.y);
+                    const Velocity new_velocity = lucas_kanada_least_sqaures(cur_features_locations_.at(i), 
+                                                                             cur_im);
+                    // (x,y) = R * (0, 0) + t + loc, (0,0) because it is the center
+                    new_features_locations.emplace_back(cur_features_locations_[i].x - new_velocity.x,
+                                                        cur_features_locations_[i].y - new_velocity.y);
                 }
                 else
                 {
@@ -65,7 +78,6 @@ public:
             }
 
             cur_features_locations_ = new_features_locations;
-            cur_features_velocities_ = new_velocities;
         }
 
         last_im_ = cur_im;
@@ -120,52 +132,23 @@ public:
             assert(false && "invalid input");
         }
 
-        assert(result.cols == src.cols);
-        assert(result.rows == src.rows);
-
-        if(false)
-        {
-            show_gradiant(result, type);
-        }
-
         return result;
-
-    }
-
-    void show_gradiant(const cv::Mat &grad_im, std::string wname = "")
-    {
-        cv::Mat abs_grad;
-        cv::convertScaleAbs( grad_im, abs_grad );
-        cv::imshow( wname, abs_grad );
-        cv::waitKey(0);
     }
 
 private:
-
     void clear_and_detect_features(const cv::Mat &cur_im)
     {
-        constexpr int MAX_FEATURES = 70;
+        constexpr int MAX_FEATURES = 4;
         constexpr double QUALITY_LEVEL = 0.01;
-        constexpr double MIN_DISTANCE = 20;
+        constexpr double MIN_DISTANCE = 10;
 
         cv::goodFeaturesToTrack(cur_im, cur_features_locations_, MAX_FEATURES, QUALITY_LEVEL, MIN_DISTANCE);
-        cur_features_velocities_ = std::vector<cv::Point2f>(cur_features_locations_.size(), cv::Point2f(0,0.));
-
-        cv::Mat hessian_default = (cv::Mat_<double>(2,2) << 1, 0, 0, 1.);
-
-        constexpr bool MANUAL_DETECTION = false;
-        if(MANUAL_DETECTION)
-        {
-            cur_features_locations_ = {{160, 130.}};
-            cur_features_velocities_ = {{0, 0.}};
-        }
     }
 
-    cv::Point2f lucas_kanada_least_sqaures(const cv::Point2f &velocity, 
-                                           const cv::Point2f &location, 
-                                           const cv::Mat &cur_im)    {
+    Velocity lucas_kanada_least_sqaures(const cv::Point2f &location, 
+                                        const cv::Mat &cur_im)    {
         // We can also update the feature localization. Ignore for simplicity.
-        cv::Point2f optimization_vars = velocity;
+        Velocity optimization_vars;
         cv::Point2f feature_loc_cur_frame = location;
 
         constexpr size_t MAX_ITERS = 3;
@@ -177,21 +160,13 @@ private:
             const cv::Mat b = compute_b(optimization_vars, feature_loc_cur_frame, 
                 last_im_, cur_im);
 
-            cv::Point2f delta = solve_normal_equation(J, b);
-
-            optimization_vars += delta;
+            Velocity delta = solve_normal_equation(J, b);
+            optimization_vars =  optimization_vars.add(delta);
             // Minus because of dx,dy is moded as last_x + dx = cur_x
-            feature_loc_cur_frame -= optimization_vars;
-
+            feature_loc_cur_frame -= {delta.x, delta.y};
             if(not feature_within_image(feature_loc_cur_frame))
             {
                 std::cout << "feature out of bound in GN iteration" << std::endl;
-                break;
-            }
-
-            // stop condition
-            if(delta.dot(delta) < 1e-4)
-            {
                 break;
             }
         }
@@ -215,13 +190,13 @@ private:
         }
     }
 
-    cv::Mat compute_jacobian(const cv::Point2f &velocity, 
+    cv::Mat compute_jacobian(const Velocity &velocity, 
                             const cv::Point2f &location, 
                             const cv::Mat &last_im_grad_x_, 
                             const cv::Mat &last_im_grad_y_)
     {
         const int patch_size = (half_window_size_ * 2 + 1) * (half_window_size_ * 2 + 1);
-        cv::Mat jacobian(patch_size, 2, CV_32F);
+        cv::Mat jacobian(patch_size, 3, CV_32F);
 
         size_t count = 0;
         // The 2 for loops can be generized by a kernal function.
@@ -229,12 +204,19 @@ private:
         {
             for(float x = location.x - half_window_size_; x <= location.x + half_window_size_ + 1e-6; x += 1.)
             {
-                const float last_x = x + velocity.x;
-                const float last_y = y + velocity.y;
-                // dx
-                jacobian.at<float>(count, 0) = -bilinear_interp(last_im_grad_x_, {last_x, last_y});
-                // dy
-                jacobian.at<float>(count, 1) = -bilinear_interp(last_im_grad_y_, {last_x, last_y});
+                cv::Point2f delta(x - location.x, y - location.y);
+                const auto last_p = velocity.apply(delta) + location;
+                const cv::Mat jacobian_xy_wrt_se2 = compute_jacobian_of_xy_wrt_se2(delta, velocity);
+                const cv::Mat jacobian_pixel_wrt_xy = (cv::Mat_<float>(1,2) 
+                                          << bilinear_interp(last_im_grad_x_, last_p),
+                                             bilinear_interp(last_im_grad_y_, last_p));
+                cv::Mat jacobian_im_wrt_se2 = jacobian_pixel_wrt_xy * jacobian_xy_wrt_se2;
+                assert(jacobian_im_wrt_se2.rows = 1);
+                assert(jacobian_im_wrt_se2.cols = 3);
+                jacobian.at<float>(count, 0) = -jacobian_im_wrt_se2.at<float>(0, 0);
+                jacobian.at<float>(count, 1) = -jacobian_im_wrt_se2.at<float>(0, 1);
+                jacobian.at<float>(count, 2) = -jacobian_im_wrt_se2.at<float>(0, 2);
+
                 ++count;
             }        
         }
@@ -243,10 +225,24 @@ private:
         return jacobian;
     }
 
-    cv::Mat compute_b(const cv::Point2f &velocity, 
-                          const cv::Point2f &location, 
-                          const cv::Mat &last_im, 
-                          const cv::Mat &cur_im)
+    cv::Mat compute_jacobian_of_xy_wrt_se2(const cv::Point2f &xy,
+                                           const Velocity &velocity)
+    {
+        const float sint = std::sin(velocity.theta);
+        const float cost = std::cos(velocity.theta);
+        const float x = xy.x;
+        const float y = xy.y;
+        // (x2, y2) = T(p) = R * (x1, y1) + t
+        cv::Mat jacobian_xy_wrt_se2 = (cv::Mat_<float>(2,3) 
+                                          << - sint * x - cost * y, 1, 0,
+                                             cost * x - sint * y  , 0, 1.);
+        return jacobian_xy_wrt_se2;
+    }
+
+    cv::Mat compute_b(const Velocity &velocity, 
+                    const cv::Point2f &location, 
+                    const cv::Mat &last_im, 
+                    const cv::Mat &cur_im)
     {
         const int patch_size = (half_window_size_ * 2 + 1) * (half_window_size_ * 2 + 1);
         cv::Mat b(patch_size, 1, CV_32F);
@@ -256,11 +252,10 @@ private:
         {
             for(float x = location.x - half_window_size_; x <= location.x + half_window_size_ + 1e-6; x += 1.)
             {
-                const float last_x = x + velocity.x;
-                const float last_y = y + velocity.y;
-
+                // im(x1, y1) - im_prev(T(p)), where, (x2, y2) = T(p) = R * (x1 - l.x, y1 - l.y) + t + l
+                cv::Point2f delta(x - location.x, y - location.y);
                 b.at<float>(count, 0) = bilinear_interp(cur_im, {x, y}) 
-                    - bilinear_interp(last_im, {last_x, last_y});
+                    - bilinear_interp(last_im, velocity.apply(delta) + location);
                 
                 ++count;
             }
@@ -272,15 +267,17 @@ private:
         return b; 
     }
 
-    cv::Point2f solve_normal_equation(const cv::Mat &jacobian, 
+    Velocity solve_normal_equation(const cv::Mat &jacobian, 
                                       const cv::Mat &b)
     {
         cv::Mat_<float> delta;
         
         // J^T J delta = -J^T b
         cv::solve(jacobian, -b, delta, cv::DECOMP_CHOLESKY | cv::DECOMP_NORMAL);
+        assert(delta.rows == 3);
+        assert(delta.cols == 1);
 
-        return {delta.at<float>(0,0), delta.at<float>(1,0)};
+        return {delta.at<float>(0,0), delta.at<float>(1,0), delta.at<float>(2,0)};
     }
 
     // https://stackoverflow.com/questions/13299409/how-to-get-the-image-pixel-at-real-locations-in-opencv
@@ -319,7 +316,6 @@ private:
 
     // Internal states
     std::vector<cv::Point2f> cur_features_locations_;
-    std::vector<cv::Point2f> cur_features_velocities_;
     
     uint64_t frame_count_ = 0;
     cv::Mat last_im_;

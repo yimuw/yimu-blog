@@ -16,11 +16,7 @@ struct RotationRectSimulator
         cv::Mat image = cv::Mat::zeros(image_length_, image_length_, CV_32F);
 
         std::vector<cv::Point> roi = compute_roi();
-        for(const auto &p : roi)
-        {
-            PRINT_NAME_VAR(p);
-        }
-
+ 
         // TODO: {} initailization doesn't work???
         //       cv::drawContours( image, {roi}, 0, 1);
         std::vector<std::vector<cv::Point>>  co_ordinates;
@@ -29,10 +25,10 @@ struct RotationRectSimulator
         co_ordinates[0].push_back(roi[1]);
         co_ordinates[0].push_back(roi[2]);
         co_ordinates[0].push_back(roi[3]);
-        cv::drawContours( image, co_ordinates, 0, 1, CV_FILLED);
+        cv::drawContours( image, co_ordinates, 0, 0.5, CV_FILLED);
 
         // more region with gredient.
-        cv::GaussianBlur( image, image, cv::Size(10, 10), 0, 0, cv::BORDER_DEFAULT );
+        cv::GaussianBlur( image, image, cv::Size(11, 11), 0, 0, cv::BORDER_DEFAULT );
         
         if(true)
         {
@@ -46,12 +42,9 @@ struct RotationRectSimulator
 
     void dynamic()
     {
-        const float dx = translation_dist_(generator_);
-        const float dy = translation_dist_(generator_);
-        const float dtheta = angle_dist_(generator_);
-        t_x_ += dx;
-        t_y_ += dy;
-        t_theta_ += dtheta;
+        t_x_ += 2;
+        t_y_ += 1;
+        t_theta_ += 0.05;
     }
 
     std::vector<cv::Point> compute_roi() const
@@ -79,7 +72,7 @@ struct RotationRectSimulator
 
     bool has_more() const
     {
-        if(idx > 2000)
+        if(idx > 1000)
         {
             return false;
         }
@@ -98,18 +91,13 @@ struct RotationRectSimulator
 
     size_t idx = 0; 
 
-    // rand generator
-    std::default_random_engine generator_;
-    std::normal_distribution<double> translation_dist_ = std::normal_distribution<double>(0., 5);
-    std::normal_distribution<double> angle_dist_ = std::normal_distribution<double>(0., 0.05);
-    
     // simulation a moving rect
     float t_x_ = 0;
     float t_y_ = 0;
     float t_theta_ = 0;
     // rect  const
     const float image_length_ = 1000;
-    const cv::Point2f center_ = {500, 500};
+    const cv::Point2f center_ = {200, 200};
     const float rect_half_length_ = 50;
 };
 
@@ -124,11 +112,10 @@ int main(int argc, char *argv[])
     {
         const auto image = imageio.read_next();
 
-        // constexpr int IMAGE_DT_MS = 1;
-        // lk_tracker.track(image);
+        constexpr int IMAGE_DT_MS = 10;
+        lk_tracker.track(image);
         
-        // // lk_tracker.show_features("features", IMAGE_DT_MS);
-        // lk_tracker.show_features_with_covariance("features", IMAGE_DT_MS);
+        lk_tracker.show_features("features", IMAGE_DT_MS);
     }
 
     return 0;

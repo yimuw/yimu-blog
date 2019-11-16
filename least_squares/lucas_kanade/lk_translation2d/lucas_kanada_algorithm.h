@@ -220,7 +220,7 @@ private:
 
             optimization_vars += delta;
             // Minus because of dx,dy is moded as last_x + dx = cur_x
-            feature_loc_cur_frame -= optimization_vars;
+            feature_loc_cur_frame -= delta;
 
             if(not feature_within_image(feature_loc_cur_frame))
             {
