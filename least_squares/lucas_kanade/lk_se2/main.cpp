@@ -42,16 +42,13 @@ struct RotationRectSimulator
 
     void dynamic()
     {
-        t_x_ += 2;
-        t_y_ += 1;
-        t_theta_ += 0.05;
+        t_x_ += 2 + xy_rand_(generator_);
+        t_y_ += 1 + xy_rand_(generator_);
+        t_theta_ += 0.05 + theta_rand_(generator_);
     }
 
     std::vector<cv::Point> compute_roi() const
-    {
-        const cv::Point center_ = {static_cast<int>(image_length_ / 2), 
-                                   static_cast<int>(image_length_ / 2)};
-    
+    {    
         cv::Point2f p1(rect_half_length_, rect_half_length_);
         cv::Point2f p2(-rect_half_length_, rect_half_length_);
         cv::Point2f p3(-rect_half_length_, -rect_half_length_);
@@ -90,6 +87,11 @@ struct RotationRectSimulator
     }
 
     size_t idx = 0; 
+
+    // rand
+    std::default_random_engine generator_;
+    std::normal_distribution<double> xy_rand_ {0.0, 1.};
+    std::normal_distribution<double> theta_rand_ {0.0, 0.01};
 
     // simulation a moving rect
     float t_x_ = 0;
