@@ -4,6 +4,9 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-g -Wall -O2)
 
+include_directories( /usr/include/suitesparse )
+include_directories( /usr/include/eigen3 )
+
 project(ct-reconstruction)
 find_package( OpenCV REQUIRED )
 
