@@ -9,9 +9,10 @@ class KalmanLeastSqaures:
     """
     cost(x) = ||F^-1 x - x_pre||^2_{FWF^T + Q}^{-1} + ||z - Hx||^2_R^{-1}
     """
-    def __init__(self, prior_state, prior_cov):
+    def __init__(self, prior_state, prior_cov, max_iter = 10):
         self.state = prior_state
         self.cov = prior_cov
+        self.max_iter = max_iter
 
     def filter(self, measurement):
         prior_state = self.state
@@ -64,7 +65,8 @@ class KalmanLeastSqaures:
         model = get_model()
         variables = model.f(prior_state)
 
-        for iter in range(10):
+        norm_equation_left = prior_cov.copy()
+        for iter in range(self.max_iter):
             jacobian, residual, weight \
                 = self.compute_jacobian_and_residual(variables, prior_state, prior_cov, measurement)
 
@@ -73,25 +75,22 @@ class KalmanLeastSqaures:
 
             dx = np.linalg.solve(norm_equation_left, norm_equation_right)
 
-            LAMBDA = 1
+            LAMBDA = 1.
 
             variables += LAMBDA * dx
 
-            if np.linalg.norm(dx) < 1e-8:
-                break
+            # if np.linalg.norm(dx) < 1e-8:
+            #     break
 
         self.state = variables
         self.cov = np.linalg.inv(norm_equation_left)
 
 
-def run_kalman_plus_filter(init_state):
-    gt_states, gt_measurements = generate_gt_data(init_state)
-
+def run_kalman_least_sqr(gt_states, gt_measurements, max_iter = 10):
     prior_state = np.array([0.5, 0.5, 0, 0, 0])
-    # prior_state = init_state
     prior_cov = np.diag([1, 1, 1, 1., 1.])
 
-    kalman_p_filter = KalmanLeastSqaures(prior_state, prior_cov)
+    kalman_p_filter = KalmanLeastSqaures(prior_state, prior_cov, max_iter)
 
     estimated_states = []
     estimated_cov = []
@@ -102,5 +101,6 @@ def run_kalman_plus_filter(init_state):
         estimated_states.append(kalman_p_filter.state)
         estimated_cov.append(kalman_p_filter.cov)
 
-    result_comparison(gt_states, estimated_states, estimated_cov, 'kalman least sqaures')
+    result_comparison(gt_states, estimated_states, estimated_cov, 
+        'kalman least sqaures, iter:' + str(max_iter))
 

@@ -176,8 +176,7 @@ class BatchLeastSqaures:
         return states, covs
 
 
-def run_batch_least_sqr(init_state):
-    gt_states, gt_measurements = generate_gt_data(init_state)
+def run_batch_least_sqr(gt_states, gt_measurements):
 
     prior_state = np.array([0.5, 0.5, 0.1, 0, 0])
     # prior_state = init_state

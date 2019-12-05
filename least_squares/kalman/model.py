@@ -83,7 +83,7 @@ class PointModel:
         ])
 
     def f_weight(self):
-        return np.diag([5, 5, 10, 100, 100])
+        return np.diag([1, 1, 10, 10, 10])
 
     def f_cov(self):
         return np.linalg.inv(self.f_weight())
@@ -116,8 +116,8 @@ class PointModel:
 
     def h_weight(self):
         return np.array([
-            [5, 0],
-            [0, 5]
+            [5., 0],
+            [0, 5.]
         ])
 
     def h_cov(self):
@@ -130,6 +130,8 @@ def get_model():
 
 def generate_gt_data(init_state):
     model = get_model()
+    measurement_size = model.NUM_OBSERVATION
+    state_size = model.NUM_STATES
 
     gt_states = []
     gt_measurements = []
@@ -137,8 +139,8 @@ def generate_gt_data(init_state):
     state = init_state
 
     for step in range(NUM_OF_SIM_DATA):
-        state = model.f(state)
-        measurement = model.h(state)
+        state = model.f(state) + np.random.normal(0, 0.01, state_size)
+        measurement = model.h(state) + np.random.normal(0, 0.1, measurement_size)
         gt_states.append(state)
         gt_measurements.append(measurement)
 

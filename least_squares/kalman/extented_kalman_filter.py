@@ -23,23 +23,20 @@ class ExtentedKalmanFilter:
         model = get_model()
         from numpy.linalg import inv
 
+        innovation = measurement - model.h(self.state)
         h_jacobian = model.h_jacobian(self.state)
+        Sk = h_jacobian @ self.cov @ h_jacobian.T + model.h_cov()
+        K = self.cov @ h_jacobian.T @ inv(Sk)
 
-        predict_cov_inv = inv(self.cov)
-        H_cov_inv = inv(model.h_cov())
-        self.cov = inv(predict_cov_inv + h_jacobian.T @ H_cov_inv @ h_jacobian)
-
-        term1 = predict_cov_inv @ self.state + h_jacobian.T @ H_cov_inv @ measurement
-        self.state = np.dot(self.cov, term1)
+        self.state = self.state + K @ innovation
+        self.cov = (np.identity(model.NUM_STATES) - K @ h_jacobian) @ self.cov
 
     def filter(self, measurement):
         self.predict()
         self.update(measurement)
 
 
-def run_extented_kalman_filter(init_state):
-    gt_states, gt_measurements = generate_gt_data(init_state)
-
+def run_extented_kalman_filter(gt_states, gt_measurements):
     prior_state = np.array([0.5, 0.5, 0, 0, 0])
     prior_cov = np.diag([1, 1, 1, 1., 1.])
 
