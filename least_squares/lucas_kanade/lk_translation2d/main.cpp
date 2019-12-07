@@ -13,25 +13,25 @@ struct ImageIO
     {
     }
 
+    bool file_exists (const std::string& name) 
+    {
+        std::ifstream f(name.c_str());
+        return f.good();
+    }
+
     cv::Mat read_next()
     {
         char filename[9];
         sprintf(filename, "%04zu.jpg", idx);
         const std::string path = image_dir_path + "/" + std::string(filename);
-        std::cout << "loading from: " << path << std::endl;
 
-        cv::Mat image = cv::imread(path);
-        // To gray
-        cv::cvtColor(image, image, CV_BGR2GRAY);
-        // To float. Not nessesary
-        image.convertTo(image, CV_32F, 1/255.0); 
-        
-        if(false)
+        std::cout << "loading from: " << path << std::endl;
+        if(file_exists(path) == false)
         {
-            imshow( "write process", image );
-            cv::waitKey(1);
+            throw std::runtime_error("image not exist");
         }
 
+        cv::Mat image = cv::imread(path);
         ++idx;
         return image;
     }
@@ -57,7 +57,7 @@ struct DebugImages
 
         // set roi to some rgb colour   
         pRoi.setTo(0.5);
-        // more region with gredient.
+        // more region with gradient.
         cv::GaussianBlur( image, image, cv::Size(5,5), 0, 0, cv::BORDER_DEFAULT );
         
         if(false)
@@ -80,25 +80,63 @@ struct DebugImages
 };
 
 
+bool read_command_line(int argc, char *argv[], std::string &image_dir_path, bool &show_covariance)
+{
+    if(argc <2)
+    {
+        throw std::runtime_error("please input the path to images folder");
+    }
+    // "/home/yimu/Desktop/yimu-blog/data/image_seqence_basketball";
+    image_dir_path =  argv[1];
+
+    show_covariance = false;
+    if(argc == 3)
+    {
+        show_covariance = (std::string(argv[2]) == std::string("show_cov"));
+    }
+    return true;
+}
+
+
 int main(int argc, char *argv[])
 {
-    const std::string image_dir_path = "/home/yimu/Desktop/yimu-blog/data/image_seqence_basketball";
-    ImageIO imageio(image_dir_path);
-    
-    // DebugImages imageio;
+    std::string image_dir_path;
+    bool show_covariance;
+    read_command_line(argc, argv, image_dir_path, show_covariance);
 
+    ImageIO imageio(image_dir_path);
     LucasKanadaTracker lk_tracker;
+
+    // WARNING: hard-code size & path
+    const std::string video_save_path = show_covariance ? "lk_cov.avi" : "lk.avi";
+    cv::VideoWriter video;
+    // hack to get image size
+    {
+        ImageIO image_size(image_dir_path);
+        cv::Mat test = image_size.read_next();
+        video = cv::VideoWriter(video_save_path, CV_FOURCC('M','J','P','G'), 24, cv::Size(576, 432));
+    }
 
     while(imageio.has_more())
     {
         const auto image = imageio.read_next();
 
-        constexpr int IMAGE_DT_MS = 1;
         lk_tracker.track(image);
         
-        // lk_tracker.show_features("features", IMAGE_DT_MS);
-        lk_tracker.show_features_with_covariance("features", IMAGE_DT_MS);
+        cv::Mat frame_with_tracks;
+        if(show_covariance)
+        {
+            frame_with_tracks = lk_tracker.show_features_with_covariance("features");
+        }
+        else
+        {
+            frame_with_tracks= lk_tracker.show_features("features");
+        }
+        video.write(frame_with_tracks);
+
     }
+    video.release();
+    std::cout << "video saved at " << video_save_path << std::endl;
 
     return 0;
 }

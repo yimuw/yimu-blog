@@ -14,19 +14,25 @@ public:
 
     void track(const cv::Mat &cur_im_in)
     {
-        cv::Mat cur_im = cur_im_in.clone();
+        cv::Mat im_gray;
+        // To gray
+        cv::cvtColor(cur_im_in, im_gray, CV_BGR2GRAY);
+        // To float. Not necessary
+        im_gray.convertTo(im_gray, CV_32F, 1/255.0); 
+
+        cv::Mat cur_im = im_gray;
         // Same as apply spline in the optimization problem.
         // TODO: prove it
         constexpr bool APPLY_SPLINE = false;
         if(APPLY_SPLINE)
         {
-            cv::GaussianBlur( cur_im_in, cur_im, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
+            cv::GaussianBlur( cur_im, cur_im, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
         }
 
         if(cur_features_locations_.size() < 50)
         {
             std::cout << "clear and detect features..." << std::endl;
-            clear_and_detect_features(cur_im_in);
+            clear_and_detect_features(cur_im);
         }
 
         if(frame_count_ == 0)
@@ -47,7 +53,7 @@ public:
                     and feature_within_image(cur_features_locations_.at(i) + cur_features_velocities_.at(i)))
                 {
                     Hessian hessian;
-                    cv::Point2f new_velocity = lucas_kanada_least_sqaures(cur_features_velocities_.at(i), 
+                    cv::Point2f new_velocity = lucas_kanada_least_squares(cur_features_velocities_.at(i), 
                                                                         cur_features_locations_.at(i), 
                                                                         cur_im,
                                                                         &hessian);
@@ -59,7 +65,7 @@ public:
                 }
                 else
                 {
-                    std::cout << "ignore feature close to broader: " 
+                    std::cout << "ignore features close to broader: " 
                               << cur_features_locations_.at(i) << std::endl;
                 }
             }
@@ -70,6 +76,7 @@ public:
         }
 
         last_im_ = cur_im;
+        last_color_im_ = cur_im_in;
         // Precompute numurical derivatives for real-time performance.
         last_im_grad_x_ = compute_derivatives(last_im_, "x");
         last_im_grad_y_ = compute_derivatives(last_im_, "y");
@@ -78,22 +85,25 @@ public:
         ++frame_count_;
     }
 
-    void show_features(const std::string wname = "features",
-                      const size_t dt = 50)
+    cv::Mat show_features(const std::string wname = "features",
+                      const size_t dt = 1)
     {
-        cv::Mat im_debug = last_im_.clone();
+        cv::Mat im_debug = last_color_im_.clone();
         for(const auto &p : cur_features_locations_)
         {
-            cv::circle(im_debug, p, 10, 240);
+            cv::circle(im_debug, p, 10, {0, 255, 0}, 1);
         }
+
         cv::imshow(wname, im_debug);
         cv::waitKey(dt);
+
+        return im_debug;
     }
 
-    void show_features_with_covariance(const std::string wname = "features",
-                      const size_t dt = 50)
+    cv::Mat show_features_with_covariance(const std::string wname = "features",
+                      const size_t dt = 1)
     {
-        cv::Mat im_debug = last_im_.clone();
+        cv::Mat im_debug = last_color_im_.clone();
         assert(cur_features_locations_.size() == hessians_.size());
         for(size_t i = 0; i < hessians_.size(); ++i)
         {
@@ -114,15 +124,48 @@ public:
             {
                 // Bad tracks
                 cv::ellipse(im_debug, p, {static_cast<int>(MAX_STD), static_cast<int>(l2 * MAX_STD / l1)}, 
-                    theta, 0, 360, {0});
+                    theta, 0, 360, {100, 0, 0}, 1);
             }
             else
             {
-                cv::ellipse(im_debug, p, {l1, l2}, theta, 0, 360, {255});
+                // TODO: opencv bug if thinkness is not 1?
+                cv::ellipse(im_debug, p, {l1, l2}, theta, 0, 360, {0, 255, 0}, 1);
             }
         }
         cv::imshow(wname, im_debug);
         cv::waitKey(dt);
+
+        return im_debug;
+    }
+
+    void show_gradient(const cv::Mat &grad_im, std::string wname = "")
+    {
+        cv::Mat abs_grad;
+        cv::convertScaleAbs( grad_im, abs_grad );
+        cv::imshow( wname, abs_grad );
+        cv::waitKey(0);
+    }
+
+private:
+
+    void clear_and_detect_features(const cv::Mat &cur_im)
+    {
+        constexpr int MAX_FEATURES = 70;
+        constexpr double QUALITY_LEVEL = 0.01;
+        constexpr double MIN_DISTANCE = 20;
+
+        cv::goodFeaturesToTrack(cur_im, cur_features_locations_, MAX_FEATURES, QUALITY_LEVEL, MIN_DISTANCE);
+        cur_features_velocities_ = std::vector<cv::Point2f>(cur_features_locations_.size(), cv::Point2f(0,0.));
+
+        cv::Mat hessian_default = (cv::Mat_<double>(2,2) << 1, 0, 0, 1.);
+        hessians_ = std::vector<Hessian>(cur_features_locations_.size(), hessian_default);
+
+        constexpr bool MANUAL_DETECTION = false;
+        if(MANUAL_DETECTION)
+        {
+            cur_features_locations_ = {{160, 130.}};
+            cur_features_velocities_ = {{0, 0.}};
+        }
     }
 
     cv::Mat compute_derivatives(const cv::Mat &src, const std::string &type)
@@ -161,44 +204,13 @@ public:
 
         if(false)
         {
-            show_gradiant(result, type);
+            show_gradient(result, type);
         }
 
         return result;
-
     }
 
-    void show_gradiant(const cv::Mat &grad_im, std::string wname = "")
-    {
-        cv::Mat abs_grad;
-        cv::convertScaleAbs( grad_im, abs_grad );
-        cv::imshow( wname, abs_grad );
-        cv::waitKey(0);
-    }
-
-private:
-
-    void clear_and_detect_features(const cv::Mat &cur_im)
-    {
-        constexpr int MAX_FEATURES = 70;
-        constexpr double QUALITY_LEVEL = 0.01;
-        constexpr double MIN_DISTANCE = 20;
-
-        cv::goodFeaturesToTrack(cur_im, cur_features_locations_, MAX_FEATURES, QUALITY_LEVEL, MIN_DISTANCE);
-        cur_features_velocities_ = std::vector<cv::Point2f>(cur_features_locations_.size(), cv::Point2f(0,0.));
-
-        cv::Mat hessian_default = (cv::Mat_<double>(2,2) << 1, 0, 0, 1.);
-        hessians_ = std::vector<Hessian>(cur_features_locations_.size(), hessian_default);
-
-        constexpr bool MANUAL_DETECTION = false;
-        if(MANUAL_DETECTION)
-        {
-            cur_features_locations_ = {{160, 130.}};
-            cur_features_velocities_ = {{0, 0.}};
-        }
-    }
-
-    cv::Point2f lucas_kanada_least_sqaures(const cv::Point2f &velocity, 
+    cv::Point2f lucas_kanada_least_squares(const cv::Point2f &velocity, 
                                            const cv::Point2f &location, 
                                            const cv::Mat &cur_im,
                                            Hessian * const hessian_ptr)
@@ -219,7 +231,7 @@ private:
             cv::Point2f delta = solve_normal_equation(J, b, hessian_ptr);
 
             optimization_vars += delta;
-            // Minus because of dx,dy is moded as last_x + dx = cur_x
+            // Minus because of dx,dy is modeled as last_x + dx = cur_x
             feature_loc_cur_frame -= delta;
 
             if(not feature_within_image(feature_loc_cur_frame))
@@ -263,7 +275,7 @@ private:
         cv::Mat jacobian(patch_size, 2, CV_32F);
 
         size_t count = 0;
-        // The 2 for loops can be generized by a kernal function.
+        // The 2 for loops can be generalized by a kernal function.
         for(float y = location.y - half_window_size_; y <= location.y + half_window_size_ + 1e-6; y += 1.)
         {
             for(float x = location.x - half_window_size_; x <= location.x + half_window_size_ + 1e-6; x += 1.)
@@ -306,7 +318,6 @@ private:
         }
         
         assert(count == patch_size);
-
 
         return b; 
     }
@@ -370,6 +381,7 @@ private:
     
     uint64_t frame_count_ = 0;
     cv::Mat last_im_;
+    cv::Mat last_color_im_;
     cv::Mat last_im_grad_x_;
     cv::Mat last_im_grad_y_;
 };
