@@ -5,15 +5,13 @@
 
 #include "lucas_kanada_algorithm.h"
 
-
-struct ImageIO
-{
+struct ImageIO {
     ImageIO(const std::string _image_dir_path)
         : image_dir_path(_image_dir_path)
     {
     }
 
-    bool file_exists (const std::string& name) 
+    bool file_exists(const std::string& name)
     {
         std::ifstream f(name.c_str());
         return f.good();
@@ -26,8 +24,7 @@ struct ImageIO
         const std::string path = image_dir_path + "/" + std::string(filename);
 
         std::cout << "loading from: " << path << std::endl;
-        if(file_exists(path) == false)
-        {
+        if (file_exists(path) == false) {
             throw std::runtime_error("image not exist");
         }
 
@@ -45,9 +42,7 @@ struct ImageIO
     size_t idx = 1;
 };
 
-
-struct DebugImages
-{
+struct DebugImages {
     cv::Mat read_next()
     {
         cv::Mat image = cv::Mat::zeros(1000, 1000, CV_32F);
@@ -55,14 +50,13 @@ struct DebugImages
         // select a region of interest
         cv::Mat pRoi = image(cv::Rect(rect_pos.x + idx, rect_pos.y, 20, 20));
 
-        // set roi to some rgb colour   
+        // set roi to some rgb colour
         pRoi.setTo(0.5);
         // more region with gradient.
-        cv::GaussianBlur( image, image, cv::Size(5,5), 0, 0, cv::BORDER_DEFAULT );
-        
-        if(false)
-        {
-            imshow( "write process", image );
+        cv::GaussianBlur(image, image, cv::Size(5, 5), 0, 0, cv::BORDER_DEFAULT);
+
+        if (false) {
+            imshow("write process", image);
             cv::waitKey(1);
         }
 
@@ -75,30 +69,30 @@ struct DebugImages
         return idx <= 725;
     }
 
-    size_t idx = 0; 
-    cv::Point2f rect_pos = {160, 130};
+    size_t idx = 0;
+    cv::Point2f rect_pos = { 160, 130 };
 };
 
-
-bool read_command_line(int argc, char *argv[], std::string &image_dir_path, bool &show_covariance)
+bool read_command_line(
+    int argc,
+    char* argv[],
+    std::string& image_dir_path,
+    bool& show_covariance)
 {
-    if(argc <2)
-    {
+    if (argc < 2) {
         throw std::runtime_error("please input the path to images folder");
     }
     // "/home/yimu/Desktop/yimu-blog/data/image_seqence_basketball";
-    image_dir_path =  argv[1];
+    image_dir_path = argv[1];
 
     show_covariance = false;
-    if(argc == 3)
-    {
+    if (argc == 3) {
         show_covariance = (std::string(argv[2]) == std::string("show_cov"));
     }
     return true;
 }
 
-
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     std::string image_dir_path;
     bool show_covariance;
@@ -114,26 +108,21 @@ int main(int argc, char *argv[])
     {
         ImageIO image_size(image_dir_path);
         cv::Mat test = image_size.read_next();
-        video = cv::VideoWriter(video_save_path, CV_FOURCC('M','J','P','G'), 24, cv::Size(576, 432));
+        video = cv::VideoWriter(video_save_path, CV_FOURCC('M', 'J', 'P', 'G'), 24, cv::Size(576, 432));
     }
 
-    while(imageio.has_more())
-    {
+    while (imageio.has_more()) {
         const auto image = imageio.read_next();
 
         lk_tracker.track(image);
-        
+
         cv::Mat frame_with_tracks;
-        if(show_covariance)
-        {
+        if (show_covariance) {
             frame_with_tracks = lk_tracker.show_features_with_covariance("features");
-        }
-        else
-        {
-            frame_with_tracks= lk_tracker.show_features("features");
+        } else {
+            frame_with_tracks = lk_tracker.show_features("features");
         }
         video.write(frame_with_tracks);
-
     }
     video.release();
     std::cout << "video saved at " << video_save_path << std::endl;
