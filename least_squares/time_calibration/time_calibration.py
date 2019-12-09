@@ -14,33 +14,38 @@ def generate_data():
     func1 = Function(time=time + time_offset, values=values)
     func2 = Function(time=time, values=values)
 
-    if  False:
+    if False:
         plt.plot(func1.time, func1.values)
         plt.plot(func2.time, func2.values)
         plt.title('function. ground truth')
         plt.show()
 
-    return func1, func2
+    return func1, func2, time_offset
+
 
 class TimeCalibration:
     '''
     want:
         minimize_dt = sum_t ||func1(t + dt) - func2(t)||^2
     '''
+
     def __init__(self):
         # states
         self.variable_time = 0.
 
         # config
-        self.max_iteration = 10
+        self.max_iteration = 7
 
-    def calibrate(self, func1, func2):
-
+    def least_squares_calibrate(self, func1, func2):
+        """
+            It is the least square loop
+        """
         for iteration in range(self.max_iteration):
-            self.plot(func1, func2)
+            self.plot(func1, func2, 'fun1 vs fun2 at iter:{}, dt:{:.5f}'.format(
+                iteration, self.variable_time))
 
             cost = self.compute_cost(func1, func2)
-            print('cost:', cost)
+            print('iteration:{}  cost:{}'.format(iteration, cost))
 
             jacobian = self.compute_jacobian(func1)
 
@@ -57,11 +62,16 @@ class TimeCalibration:
         return diff.T @ diff
 
     def compute_jacobian(self, func1):
+        """
+            Compute the derivative of residual w.r.t dt
+        """
         # compute derivative
         dt = func1.time[1] - func1.time[0]
         # np.convolve 'same' has boundary effect.
-        value_padded = np.concatenate([[func1.values[0]],func1.values, [func1.values[-1]]])
-        dfunc1_dt = Function(func1.time, np.convolve(value_padded, [0.5 / dt, 0, - 0.5 / dt], 'valid'))
+        value_padded = np.concatenate(
+            [[func1.values[0]], func1.values, [func1.values[-1]]])
+        dfunc1_dt = Function(func1.time, np.convolve(
+            value_padded, [0.5 / dt, 0, - 0.5 / dt], 'valid'))
 
         SHOW_DEVRIVATIVE = False
         if SHOW_DEVRIVATIVE:
@@ -69,46 +79,60 @@ class TimeCalibration:
             plt.plot(func1.time, func1.values, 'g')
             plt.show()
 
-        # r(dt) = func1(t+dt) - func2(t) 
+        # r(dt) = func1(t+dt) - func2(t)
         # drdt(dt) = dfun1_dt(t + dt)
-        jacobian = np.interp(func1.time + self.variable_time, dfunc1_dt.time, dfunc1_dt.values)
+        jacobian = np.interp(func1.time + self.variable_time,
+                             dfunc1_dt.time, dfunc1_dt.values)
 
         return jacobian
 
     def compute_b(self, func1, func2):
-        # r(dt) = func1(t+dt) - func2(t) 
+        """
+            compute residual evaluated at current variable
+        """
+        # r(dt) = func1(t+dt) - func2(t)
         t = func1.time
         b = np.interp(t + self.variable_time, func1.time, func1.values) \
             - np.interp(t, func2.time, func2.values)
         return b
 
-
     def solve_normal_equation(self, jacobian, b):
+        """
+            solve the normal equation
+        """
         lhs = jacobian.T @ jacobian
         rhs = -jacobian.T @ b
-        # this is np.linalg.solve(rhs, lhs) for 1d
+
+        # NOTE: np.linalg.solve(rhs, lhs) doesn't work for 1d
         delta = rhs / lhs
-        print('delta: ', delta)
-        print('dt:', self.variable_time)
         return delta
 
-    def plot(self, func1, func2):
+    def plot(self, func1, func2, title='func1 vs func2'):
+        """
+            Plot func1 and func2
+        """
         t = func1.time
-        v1 = np.interp(t + self.variable_time, func1.time, func1.values) 
+        v1 = np.interp(t + self.variable_time, func1.time, func1.values)
         v2 = np.interp(t, func2.time, func2.values)
-        plt.plot(t, v1)
-        plt.plot(t, v2)
 
-        plt.title('function.')
+        fig, ax = plt.subplots()
+        ax.plot(t, v1, label='func1(t + dt)')
+        ax.plot(t, v2, label='func2(t)')
+        ax.legend()
+
+        plt.title(title)
         plt.show()
 
 
 def main():
-    f1, f2 = generate_data()
+    f1, f2, gt_time_offset = generate_data()
+    print('gt_time_offset:', gt_time_offset)
 
     calib = TimeCalibration()
-    print(calib)
-    calib.calibrate(f1, f2)
+    calib.least_squares_calibrate(f1, f2)
+
+    print('gt_time_offset:', gt_time_offset)
+    print('estimated_time_offset:', calib.variable_time)
 
 
 if __name__ == "__main__":
