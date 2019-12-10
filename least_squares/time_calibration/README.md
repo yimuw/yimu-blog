@@ -6,10 +6,7 @@ Time Calibration implementation in Python.
 
 Check this article about Time calibration least squares problem : <->
 
-
-## 2. Run
-
-### 2.1 Dependency
+## 2 Dependency
 
 We need `pip` and `virtualenv`
 
@@ -24,7 +21,9 @@ Install virtualenv,
 pip install virtualenv
 ```
 
-### 2.2 Create virtual env
+## 2. Run
+
+### 2.1 Create virtual env
 
 Skip this step if you already did it.
 
