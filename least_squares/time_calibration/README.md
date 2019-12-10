@@ -47,7 +47,7 @@ Install `requirements.txt`.
 The `requirements.txt` is in `/yimu-blog/requirements.txt`.
 
 ```
-yimu@yimu-mate:<path to>/yimu-blog$ pip install -r requirements.txt 
+yimu@yimu-mate:<path to>/yimu-blog$ pip3 install -r requirements.txt 
 ```
 
 ### 2.2 Python run
