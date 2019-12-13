@@ -19,6 +19,7 @@
 #include <condition_variable>
 
 #include "comms_utils.h"
+#include "serialization.h"
 #include "tcp_recv_buffer.h"
 #include "tcp_send_buffer.h"
 

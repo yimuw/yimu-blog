@@ -1,4 +1,5 @@
 #include "../comms_utils.h"
+#include "../serialization.h"
 
 
 namespace comms
@@ -11,7 +12,7 @@ namespace message
 // the message type here is int32_t
 
 template<>   // primary template
-constexpr size_t size_of_message<int32_t>()
+constexpr uint32_t size_of_message<int32_t>()
 {
     return sizeof(int32_t);
 }
@@ -34,7 +35,7 @@ void deserialize<int32_t>(char const * const buffer, int32_t &obj)
 // the message type here is double
 
 template<>   // primary template
-constexpr size_t size_of_message<double>()
+constexpr uint32_t size_of_message<double>()
 {
     return sizeof(double);
 }

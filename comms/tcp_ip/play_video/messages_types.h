@@ -2,6 +2,7 @@
 
 #include <opencv2/opencv.hpp>
 #include "../comms_utils.h"
+#include "../serialization.h"
 
 
 struct ImageIO
@@ -106,10 +107,10 @@ struct Frame
 
 
 // Assuming fixed size image
-constexpr size_t TEST_IMAGE_SIZE = 995340;
+constexpr uint32_t TEST_IMAGE_SIZE = 995340;
 
 template<>   // primary template
-constexpr size_t size_of_message<Frame>()
+constexpr uint32_t size_of_message<Frame>()
 {
     return sizeof(int32_t) + TEST_IMAGE_SIZE;
 }
@@ -150,7 +151,7 @@ struct VideoControl
 };
 
 template<>   // primary template
-constexpr size_t size_of_message<VideoControl>()
+constexpr uint32_t size_of_message<VideoControl>()
 {
     return sizeof(VideoControl);
 }
