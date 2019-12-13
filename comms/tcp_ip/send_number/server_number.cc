@@ -7,32 +7,27 @@ int main(void)
 {
     control::set_gracefully_exit();
 
-    TcpConfig tcp_config{"3491", "AI_PASSIVE"};
+    TcpConfig tcp_config{ "3491", "AI_PASSIVE" };
 
     TcpServer<double, int32_t> tcp_server(tcp_config);
 
-    if(tcp_server.initailize() == false)
-    {
+    if (tcp_server.initailize() == false) {
         return 0;
     }
 
-    for(double i = 0; i < 1000; i += 0.5)
-    {
+    for (double i = 0; i < 1000; i += 0.5) {
         usleep(200 * 1e3);
 
-        std::cout << "publish int: " << i << std::endl; 
+        std::cout << "publish int: " << i << std::endl;
         tcp_server.send_to_peer(i);
 
         int32_t received_value = -1;
-        while(tcp_server.recv_from_peer(received_value))
-        {
+        while (tcp_server.recv_from_peer(received_value)) {
             std::cout << "received: " << received_value << std::endl;
         }
 
-        if(control::program_exit() == true)
-        {
+        if (control::program_exit() == true) {
             break;
         }
     }
-
 }

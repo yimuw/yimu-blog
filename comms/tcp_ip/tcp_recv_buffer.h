@@ -1,59 +1,52 @@
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/wait.h>
+#include <netinet/in.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#include <string>
-#include <iostream>
-#include <thread>             
-#include <mutex>              
 #include <condition_variable>
+#include <iostream>
+#include <mutex>
+#include <string>
+#include <thread>
 
-#include "comms_utils.h"
 #include "buffer.h"
+#include "comms_utils.h"
 
+namespace comms {
 
-namespace comms
-{
-
-template<size_t CellSizeByte>
-class TcpRecvBuffer
-{
+template <size_t CellSizeByte>
+class TcpRecvBuffer {
 public:
     ~TcpRecvBuffer()
     {
-        if(recv_thread_.joinable())
-        {
+        if (recv_thread_.joinable()) {
             std::cout << "joining recv_thread_" << std::endl;
             recv_thread_.join();
         }
     }
 
-    bool read(char * const target_data_ptr)
+    bool read(char* const target_data_ptr)
     {
-        if(has_data() == false)
-        {
+        if (has_data() == false) {
             return false;
         }
 
-        if(recv_thread_alive_ == false)
-        {
+        if (recv_thread_alive_ == false) {
             return false;
         }
 
-        auto copy_to_buffer = [&target_data_ptr](char const * const src_data_ptr)
-        {
+        auto copy_to_buffer = [&target_data_ptr](char const* const src_data_ptr) {
             memcpy(target_data_ptr, src_data_ptr, CellSizeByte);
             return true;
         };
@@ -66,14 +59,12 @@ public:
     void start_recv_thread(Socket connected_socket)
     {
         recv_thread_ = std::thread(
-            [this, connected_socket]()
-            {
+            [this, connected_socket]() {
                 recv_thread_alive_ = true;
                 std::cout << "recv buffer, thread started" << std::endl;
                 this->recv_data_loop(connected_socket);
                 recv_thread_alive_ = false;
-            }
-        );
+            });
     }
 
 private:
@@ -84,19 +75,14 @@ private:
 
     void recv_data_loop(Socket connected_socket)
     {
-        while(control::program_exit() == false)
-        {
+        while (control::program_exit() == false) {
             bool status = recv_data_blob_and_write_to_queue(connected_socket);
-            if(status == false)
-            {
+            if (status == false) {
                 std::cout << "recv data thread quit" << std::endl;
                 break;
-            }
-            else
-            {
+            } else {
                 std::cout << "background thread receive data" << std::endl;
             }
-            
         }
     }
 
@@ -109,16 +95,13 @@ private:
         int received_data = 0;
         namespace sync = comms::package_sync;
         sync::SyncStatus status = sync::wait_for_control_packge(connected_socket, buf, received_data);
-        if(status == sync::SyncStatus::success)
-        {
+        if (status == sync::SyncStatus::success) {
             const int rest_bytes = CellSizeByte - received_data;
             assert(rest_bytes >= 0);
-            if(rest_bytes > 0)
-            {
-                bool recv_status = recv_all(connected_socket, buf + received_data, 
+            if (rest_bytes > 0) {
+                bool recv_status = recv_all(connected_socket, buf + received_data,
                     CellSizeByte - received_data);
-                if (recv_status == false)
-                {
+                if (recv_status == false) {
                     perror("recv_all failed");
                     std::cerr << "recv_all failed" << std::endl;
                     return false;
@@ -128,20 +111,17 @@ private:
             // TODO: not efficient. Do one copy.
             buffer_.write(buf);
             return true;
-        }
-        else
-        {
+        } else {
             std::cout << "tcp recv fail" << std::endl;
             return false;
         }
     }
 
 private:
-
-    static constexpr size_t BUFFER_LENGTH {10};
+    static constexpr size_t BUFFER_LENGTH{ 10 };
     CircularBuffer<BUFFER_LENGTH, CellSizeByte> buffer_;
 
     std::thread recv_thread_;
-    std::atomic_bool recv_thread_alive_ {false};
+    std::atomic_bool recv_thread_alive_{ false };
 };
 }

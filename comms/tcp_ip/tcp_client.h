@@ -1,55 +1,51 @@
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/wait.h>
+#include <netinet/in.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#include <string>
-#include <iostream>
-#include <thread>             
-#include <mutex>              
 #include <condition_variable>
+#include <iostream>
+#include <mutex>
+#include <string>
+#include <thread>
 
 #include "comms_utils.h"
 #include "serialization.h"
 #include "tcp_peer.h"
 
+namespace comms {
 
-namespace comms
-{
-
-template<typename SendMessageType, typename RecvMessageType>
-class TcpClient : public TcpPeer<SendMessageType, RecvMessageType>
-{
+template <typename SendMessageType, typename RecvMessageType>
+class TcpClient : public TcpPeer<SendMessageType, RecvMessageType> {
     // for templated inherentance
     using TcpPeer<SendMessageType, RecvMessageType>::config_;
     using TcpPeer<SendMessageType, RecvMessageType>::recv_buffer_;
     using TcpPeer<SendMessageType, RecvMessageType>::tcp_data_;
+
 public:
-    TcpClient(const TcpConfig &config)
+    TcpClient(const TcpConfig& config)
     {
         config_ = config;
     }
 
     bool initailize()
     {
-        if(client_socket_initailization() == false)
-        {
+        if (client_socket_initailization() == false) {
             return false;
         }
 
-        if(control::program_exit() == true)
-        {
+        if (control::program_exit() == true) {
             return false;
         }
 
@@ -76,9 +72,10 @@ private:
         }
 
         // loop through all the results and connect to the first we can
-        for(p = servinfo; p != NULL; p = p->ai_next) {
+        for (p = servinfo; p != NULL; p = p->ai_next) {
             if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                    p->ai_protocol)) == -1) {
+                     p->ai_protocol))
+                == -1) {
                 perror("client: socket");
                 continue;
             }
@@ -97,8 +94,8 @@ private:
             return false;
         }
 
-        inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-                s, sizeof s);
+        inet_ntop(p->ai_family, get_in_addr((struct sockaddr*)p->ai_addr),
+            s, sizeof s);
         printf("client: connecting to %s\n", s);
 
         freeaddrinfo(servinfo); // all done with this structure

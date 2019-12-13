@@ -1,49 +1,44 @@
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <arpa/inet.h>
+#include <condition_variable>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <string>
 #include <iostream>
-#include <thread>             
-#include <mutex>              
-#include <condition_variable>
+#include <mutex>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <thread>
+#include <unistd.h>
 
 #include "comms_utils.h"
 #include "serialization.h"
 #include "tcp_recv_buffer.h"
 #include "tcp_send_buffer.h"
 
-
-namespace comms
-{
+namespace comms {
 // C programmers are crazy...
 using Socket = int;
 
-struct TcpData
-{
+struct TcpData {
     Socket server_sockfd;
     Socket connected_sockfd;
 };
 
-struct TcpConfig
-{
+struct TcpConfig {
     std::string port;
     std::string ip;
 };
 
-template<typename SendMessageType, typename RecvMessageType>
-class TcpPeer
-{
+template <typename SendMessageType, typename RecvMessageType>
+class TcpPeer {
 public:
     ~TcpPeer()
     {
@@ -52,7 +47,7 @@ public:
         close(tcp_data_.connected_sockfd);
     }
 
-    bool send_to_peer(const SendMessageType &message)
+    bool send_to_peer(const SendMessageType& message)
     {
         // TODO: direct serialize to send buffer
         char buffer[message::size_of_message<SendMessageType>()];
@@ -62,16 +57,13 @@ public:
     }
 
     // actual recv is handled by a background thread.
-    bool recv_from_peer(RecvMessageType &message)
+    bool recv_from_peer(RecvMessageType& message)
     {
         char buffer[message::size_of_message<RecvMessageType>()];
         bool status = recv_buffer_.read(buffer);
-        if(status == false)
-        {
+        if (status == false) {
             return false;
-        }
-        else
-        {
+        } else {
             // TODO: deserialize on the fly
             message::deserialize<RecvMessageType>(buffer, message);
             return true;
