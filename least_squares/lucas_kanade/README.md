@@ -4,7 +4,7 @@ Lucas-Kanade implementation in C++.
 
 ## 1. Reading
 
-Check this article about Lucas-Kanade tracker basis: <->
+Check this article about Lucas-Kanade tracker basis: https://wang-yimu.com/lucas-kanade-tracker/
 
 Check this article about Lucas-Kanade tracker with covariance: <->
 
