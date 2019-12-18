@@ -36,7 +36,7 @@ int main(int argc, char const* argv[])
 
     int count = 0;
     while (image_io.has_more()) {
-        usleep(50 * 1000);
+        usleep(20 * 1000);
         message::Frame frame;
         frame.frame_id = count++;
         frame.image = image_io.read_next();

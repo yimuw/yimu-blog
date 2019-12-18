@@ -79,7 +79,7 @@ namespace package_sync {
                 return SyncStatus::success;
             }
         }
-        std::cout << "wait_for_control_packge timeout" << std::endl;
+        std::cout << "wait_for_control_package timeout" << std::endl;
         return SyncStatus::timeout;
     }
 }
