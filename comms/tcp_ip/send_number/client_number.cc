@@ -11,7 +11,7 @@ int main(void)
 
     TcpClient<int32_t, double> tcp_client(tcp_config);
 
-    if (tcp_client.initailize() == false) {
+    if (tcp_client.initialize() == false) {
         return 0;
     }
 

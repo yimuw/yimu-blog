@@ -28,13 +28,13 @@ namespace comms {
 template <size_t CellSizeByte>
 class TcpSendBuffer {
 public:
-    // Copy to buffer, and trige tcp send.
+    // Copy to buffer, and triage tcp send.
     // Not guarantee to publish successfully.
     bool write_to_buff_and_trige_send(char const* const data_ptr, const Socket& connected_client)
     {
         // copy data to buffer
         if (send_buffer_.write(data_ptr)) {
-            // Trige a sent
+            // Triage a sent
             // alternatively, using a thread and a conditional variable.
             return send_avaliable_data_in_queue_to_client(connected_client);
         } else {

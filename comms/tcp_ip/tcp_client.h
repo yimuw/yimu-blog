@@ -28,7 +28,7 @@ namespace comms {
 
 template <typename SendMessageType, typename RecvMessageType>
 class TcpClient : public TcpPeer<SendMessageType, RecvMessageType> {
-    // for templated inherentance
+    // for templated inheritance
     using TcpPeer<SendMessageType, RecvMessageType>::config_;
     using TcpPeer<SendMessageType, RecvMessageType>::recv_buffer_;
     using TcpPeer<SendMessageType, RecvMessageType>::tcp_data_;
@@ -39,9 +39,9 @@ public:
         config_ = config;
     }
 
-    bool initailize()
+    bool initialize()
     {
-        if (client_socket_initailization() == false) {
+        if (client_socket_initialize() == false) {
             return false;
         }
 
@@ -51,12 +51,12 @@ public:
 
         recv_buffer_.start_recv_thread(tcp_data_.connected_sockfd);
 
-        std::cout << "initailize done" << std::endl;
+        std::cout << "initialization done" << std::endl;
         return true;
     }
 
 private:
-    bool client_socket_initailization()
+    bool client_socket_initialize()
     {
         int sockfd;
         struct addrinfo hints, *servinfo, *p;

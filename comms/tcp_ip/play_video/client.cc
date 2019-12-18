@@ -17,7 +17,7 @@ int main(void)
 
     TcpConfig tcp_config{ "3491", "yimu-mate" };
     TcpClient<message::VideoControl, message::Frame> tcp_client(tcp_config);
-    if (tcp_client.initailize() == false) {
+    if (tcp_client.initialize() == false) {
         return 0;
     }
 

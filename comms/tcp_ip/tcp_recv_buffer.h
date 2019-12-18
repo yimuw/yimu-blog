@@ -94,7 +94,7 @@ private:
         char buf[CellSizeByte];
         int received_data = 0;
         namespace sync = comms::package_sync;
-        sync::SyncStatus status = sync::wait_for_control_packge(connected_socket, buf, received_data);
+        sync::SyncStatus status = sync::wait_for_control_package(connected_socket, buf, received_data);
         if (status == sync::SyncStatus::success) {
             const int rest_bytes = CellSizeByte - received_data;
             assert(rest_bytes >= 0);

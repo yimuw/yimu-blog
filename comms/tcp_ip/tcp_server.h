@@ -25,7 +25,7 @@ namespace comms {
 
 template <typename SendMessageType, typename RecvMessageType>
 class TcpServer : public TcpPeer<SendMessageType, RecvMessageType> {
-    // for templated inherentance
+    // for templated inheritance
     using TcpPeer<SendMessageType, RecvMessageType>::config_;
     using TcpPeer<SendMessageType, RecvMessageType>::recv_buffer_;
     using TcpPeer<SendMessageType, RecvMessageType>::tcp_data_;
@@ -36,9 +36,9 @@ public:
         config_ = config;
     }
 
-    bool initailize()
+    bool initialize()
     {
-        if (server_socket_initailization() == false) {
+        if (server_socket_initialize() == false) {
             return false;
         }
 
@@ -52,14 +52,14 @@ public:
 
         recv_buffer_.start_recv_thread(tcp_data_.connected_sockfd);
 
-        std::cout << "initailize done" << std::endl;
+        std::cout << "initialize done" << std::endl;
         return true;
     }
 
 private:
     // Thanks beej!!
     // https://beej.us/guide/bgnet/html//index.html
-    bool server_socket_initailization()
+    bool server_socket_initialize()
     {
         struct addrinfo hints;
         memset(&hints, 0, sizeof hints);

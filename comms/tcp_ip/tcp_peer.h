@@ -42,7 +42,7 @@ class TcpPeer {
 public:
     ~TcpPeer()
     {
-        // TODO: check what will happen if close a uninitailized socket.
+        // TODO: check what will happen if close a uninitialized socket.
         close(tcp_data_.server_sockfd);
         close(tcp_data_.connected_sockfd);
     }

@@ -92,7 +92,7 @@ namespace package_sync {
                          I use it to singal the start of a message.   \
                          make sure you dont type it in your message!  \
                          I am curious how do people handle it in      \
-                         pratice? Specitail character? definitely     \
+                         pratice? Special character? definitely     \
                          not a super long string like this.";
 
     bool send_control_package(int socket)
@@ -113,7 +113,7 @@ namespace package_sync {
     };
 
     // Wait for the header
-    SyncStatus wait_for_control_packge(int socket, char* buf, int& received_data)
+    SyncStatus wait_for_control_package(int socket, char* buf, int& received_data)
     {
         // TODO: doesn't work if TCP decide to break control message into 2 receive.
         //       or mutiple control pkg beem grouped into the same tcp recv
@@ -123,11 +123,11 @@ namespace package_sync {
         for (size_t num_try = 0; num_try < 1000; ++num_try) {
             int n = recv(socket, small_buf, SMALL_BUFFER_SIZE, 0);
             if (n == -1) {
-                std::cout << "wait_for_control_packge recv fail, retry" << std::endl;
+                std::cout << "wait_for_control_package recv fail, retry" << std::endl;
                 return SyncStatus::failure;
             }
             if (n == 0) {
-                std::cout << "wait_for_control_packge server disconnected" << std::endl;
+                std::cout << "wait_for_control_package server disconnected" << std::endl;
                 return SyncStatus::failure;
             }
 

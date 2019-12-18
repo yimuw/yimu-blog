@@ -11,7 +11,7 @@ int main(void)
 
     TcpServer<double, int32_t> tcp_server(tcp_config);
 
-    if (tcp_server.initailize() == false) {
+    if (tcp_server.initialize() == false) {
         return 0;
     }
 

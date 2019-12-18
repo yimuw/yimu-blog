@@ -22,7 +22,7 @@ int main(void)
 
     TcpConfig tcp_config{ "3491", "AI_PASSIVE" };
     TcpServer<message::Frame, message::VideoControl> tcp_server(tcp_config);
-    tcp_server.initailize();
+    tcp_server.initialize();
 
     ImageIO image_io("/home/yimu/Desktop/yimu-blog/data/image_seqence_basketball");
 
