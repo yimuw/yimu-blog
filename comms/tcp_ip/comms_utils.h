@@ -1,13 +1,13 @@
 #pragma once
 
-// TODO: source file
-// TODO: need a linter
+// TODO: remove some?
 #include <arpa/inet.h>
 #include <assert.h>
 #include <atomic>
 #include <cstring>
 #include <errno.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
 #include <iostream>
 #include <mutex>
 #include <netdb.h>
@@ -23,6 +23,8 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+
+#include "third_party/argparse/argparse.hpp"
 
 namespace comms {
 // C programmers are crazy...
@@ -63,24 +65,11 @@ char* cast_to_char_ptr(T* const ptr)
 namespace control {
     std::atomic<bool> quit(false); // signal flag
 
-    void got_signal(int)
-    {
-        quit.store(true);
-    }
+    void got_signal(int);
 
-    void set_gracefully_exit()
-    {
-        struct sigaction sa;
-        memset(&sa, 0, sizeof(sa));
-        sa.sa_handler = got_signal;
-        sigfillset(&sa.sa_mask);
-        sigaction(SIGINT, &sa, NULL);
-    }
+    void set_gracefully_exit();
 
-    bool program_exit()
-    {
-        return quit.load();
-    }
+    bool program_exit();
 }
 
 // Handing ICP data packging
@@ -95,16 +84,7 @@ namespace package_sync {
                          pratice? Special character? definitely     \
                          not a super long string like this.";
 
-    bool send_control_package(int socket)
-    {
-        int n = send(socket, control_string, sizeof(control_string), 0);
-        if (n == -1) {
-            std::cout << "send_control_package fail" << std::endl;
-            return false;
-        }
-
-        return true;
-    }
+    bool send_control_package(int socket);
 
     enum class SyncStatus {
         success,
@@ -113,147 +93,33 @@ namespace package_sync {
     };
 
     // Wait for the header
-    SyncStatus wait_for_control_package(int socket, char* buf, int& received_data)
-    {
-        // TODO: doesn't work if TCP decide to break control message into 2 receive.
-        //       or mutiple control pkg beem grouped into the same tcp recv
-        constexpr int SMALL_BUFFER_SIZE = 1024;
-        char small_buf[SMALL_BUFFER_SIZE];
-
-        for (size_t num_try = 0; num_try < 1000; ++num_try) {
-            int n = recv(socket, small_buf, SMALL_BUFFER_SIZE, 0);
-            if (n == -1) {
-                std::cout << "wait_for_control_package recv fail, retry" << std::endl;
-                return SyncStatus::failure;
-            }
-            if (n == 0) {
-                std::cout << "wait_for_control_package server disconnected" << std::endl;
-                return SyncStatus::failure;
-            }
-
-            char* control_string_ptr = strstr(small_buf, control_string);
-            if (control_string_ptr == nullptr) {
-                continue;
-            } else {
-                // strip control_string, copy other data to main buffer
-                // assume buff is larger than SMALL_BUFFER_SIZE
-                const char* mesage_start = control_string_ptr + sizeof(control_string);
-                const char* message_end = small_buf + n;
-                const int message_size = message_end - mesage_start;
-                // assume buf is long enough.
-                memcpy(buf,
-                    mesage_start,
-                    message_size);
-                received_data = message_size;
-
-                return SyncStatus::success;
-            }
-        }
-        std::cout << "wait_for_control_packge timeout" << std::endl;
-        return SyncStatus::timeout;
-    }
+    SyncStatus wait_for_control_package(int socket, char* buf, int& received_data);
 }
 
 // https://beej.us/guide/bgnet/html//index.html
-bool sendall(int socket, char* buf, int len)
-{
-    SLIENT_COUT_CURRENT_SCOPE;
-
-    int sent = 0;
-    int bytesleft = len;
-    int n = -1;
-
-    const int max_tries = 20;
-    int num_try = 0;
-
-    while (sent < len) {
-        if (num_try++ > max_tries) {
-            std::cout << "send all time out" << std::endl;
-            return false;
-        }
-
-        n = send(socket, buf + sent, bytesleft, 0);
-        if (n <= 0) {
-            std::cout << "send fail, retry" << std::endl;
-
-            continue;
-        }
-
-        sent += n;
-        bytesleft -= n;
-        PRINT_NAME_VAR(n);
-    }
-    PRINT_NAME_VAR(len);
-    PRINT_NAME_VAR(sent);
-    assert(len == sent);
-
-    return len == sent;
-}
+bool sendall(int socket, char* buf, int len);
 
 // https://beej.us/guide/bgnet/html//index.html
-bool recv_all(int socket, char* buf, int want_size_byte)
-{
-    SLIENT_COUT_CURRENT_SCOPE;
+bool recv_all(int socket, char* buf, int want_size_byte);
 
-    int total = 0;
-    int n = -1;
-    int want = want_size_byte;
-
-    while (total < want_size_byte) {
-        n = recv(socket, buf + total, want - total, 0);
-        if (n == -1) {
-            std::cout << "recv fail" << std::endl;
-            return false;
-        }
-        if (n == 0) {
-            std::cout << "server disconnect" << std::endl;
-            return false;
-        }
-        total += n;
-        std::cout << "recv n bytes: " << n << std::endl;
-    }
-
-    std::cout << "total :" << total << std::endl;
-
-    assert(want_size_byte == total && "len != total");
-
-    return true;
-}
-
-void sigchld_handler(int s)
-{
-    (void)s; // quiet unused variable warning
-
-    // waitpid() might overwrite errno, so we save and restore it:
-    int saved_errno = errno;
-
-    while (waitpid(-1, NULL, WNOHANG) > 0)
-        ;
-
-    errno = saved_errno;
-}
+void sigchld_handler(int s);
 
 // get sockaddr, IPv4 or IPv6:
-void* get_in_addr(struct sockaddr* sa)
-{
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
+void* get_in_addr(struct sockaddr* sa);
 
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
+bool kill_dead_processes();
 
-bool kill_dead_processes()
-{
-    struct sigaction sa;
-    sa.sa_handler = sigchld_handler; // reap all dead processes
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        perror("sigaction");
-        return false;
-    }
+void print_current_ip();
 
-    return true;
-}
+struct Arguments {
+    std::string ip;
+    std::string port;
+    std::string image_dir;
+};
+
+// Thank you hbristow!
+Arguments tcp_ip_image_server_argparse(int argc, const char** argv);
+
+// Thank you hbristow!
+Arguments tcp_ip_argparse(int argc, const char** argv);
 }

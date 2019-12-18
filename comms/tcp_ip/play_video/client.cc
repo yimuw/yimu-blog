@@ -11,11 +11,14 @@ void get_keybroad_input()
     std::cout << "get keybroad enter" << std::endl;
 }
 
-int main(void)
+// play_video_client --ip yimu-mate --port 3491
+int main(int argc, char const* argv[])
 {
+    const Arguments args = tcp_ip_argparse(argc, argv);
+
     control::set_gracefully_exit();
 
-    TcpConfig tcp_config{ "3491", "yimu-mate" };
+    TcpConfig tcp_config{ args.port, args.ip };
     TcpClient<message::VideoControl, message::Frame> tcp_client(tcp_config);
     if (tcp_client.initialize() == false) {
         return 0;

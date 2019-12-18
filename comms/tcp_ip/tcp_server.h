@@ -85,6 +85,7 @@ private:
         struct addrinfo* p;
         Socket sockfd;
         int yes = 1;
+        bool binded = false;
         // loop through all the results and bind to the first we can
         for (p = servinfo; p != NULL; p = p->ai_next) {
             if ((sockfd = socket(p->ai_family, p->ai_socktype,
@@ -105,9 +106,17 @@ private:
                 close(sockfd);
                 std::cerr << "server: bind" << std::endl;
                 continue;
+            } else {
+                binded = true;
             }
 
             break;
+        }
+
+        if(binded == false)
+        {
+            std::cout << "fail to bind to ip address:" << config_.ip << std::endl;
+            return false;
         }
 
         char s[INET6_ADDRSTRLEN];

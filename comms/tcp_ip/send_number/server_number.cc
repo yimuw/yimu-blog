@@ -3,11 +3,14 @@
 
 using namespace comms;
 
-int main(void)
+int main(int argc, char const* argv[])
 {
-    control::set_gracefully_exit();
+    print_current_ip();
 
-    TcpConfig tcp_config{ "3491", "AI_PASSIVE" };
+    control::set_gracefully_exit();
+    
+    const Arguments args = tcp_ip_argparse(argc, argv);
+    TcpConfig tcp_config{ args.port, args.ip };
 
     TcpServer<double, int32_t> tcp_server(tcp_config);
 

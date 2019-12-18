@@ -16,15 +16,23 @@ void video_play_control(TcpServer<message::Frame, message::VideoControl>& tcp_se
     }
 }
 
-int main(void)
+// play_video_server --ip AI_PASSIVE --port 3491 --image-dir /home/yimu/Desktop/yimu-blog/data/image_seqence_basketball
+int main(int argc, char const* argv[])
 {
+    print_current_ip();
+
     control::set_gracefully_exit();
-
-    TcpConfig tcp_config{ "3491", "AI_PASSIVE" };
+    
+    const Arguments args = tcp_ip_image_server_argparse(argc, argv);
+    TcpConfig tcp_config{ args.port, args.ip };
+    
     TcpServer<message::Frame, message::VideoControl> tcp_server(tcp_config);
-    tcp_server.initialize();
+    if(!tcp_server.initialize())
+    {
+        return 0;
+    }
 
-    ImageIO image_io("/home/yimu/Desktop/yimu-blog/data/image_seqence_basketball");
+    ImageIO image_io(args.image_dir);
 
     int count = 0;
     while (image_io.has_more()) {
@@ -43,5 +51,5 @@ int main(void)
     }
 
     control::quit = true;
-    exit(0);
+    return 0;
 }
