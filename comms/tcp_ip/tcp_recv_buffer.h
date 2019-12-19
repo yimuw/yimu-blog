@@ -102,8 +102,7 @@ private:
                 bool recv_status = recv_all(connected_socket, buf + received_data,
                     CellSizeByte - received_data);
                 if (recv_status == false) {
-                    perror("recv_all failed");
-                    std::cerr << "recv_all failed" << std::endl;
+                    std::out << "recv_all failed" << std::endl;
                     return false;
                 }
             }

@@ -51,8 +51,8 @@ namespace internal {
 }
 
 // TODO: logger
-#define SLIENT_COUT_CURRENT_SCOPE internal::SilentCoutInternal var_name_duplicated;
-// #define SLIENT_COUT_CURRENT_SCOPE
+// #define SLIENT_COUT_CURRENT_SCOPE internal::SilentCoutInternal var_name_duplicated;
+#define SLIENT_COUT_CURRENT_SCOPE
 
 template <typename T>
 char* cast_to_char_ptr(T* const ptr)

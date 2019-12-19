@@ -87,13 +87,11 @@ namespace package_sync {
 // https://beej.us/guide/bgnet/html//index.html
 bool sendall(int socket, char* buf, int len)
 {
-    SLIENT_COUT_CURRENT_SCOPE;
-
     int sent = 0;
     int bytesleft = len;
     int n = -1;
 
-    const int max_tries = 20;
+    const int max_tries = 5;
     int num_try = 0;
 
     while (sent < len) {
@@ -111,10 +109,7 @@ bool sendall(int socket, char* buf, int len)
 
         sent += n;
         bytesleft -= n;
-        PRINT_NAME_VAR(n);
     }
-    PRINT_NAME_VAR(len);
-    PRINT_NAME_VAR(sent);
     assert(len == sent);
 
     return len == sent;
@@ -123,8 +118,6 @@ bool sendall(int socket, char* buf, int len)
 // https://beej.us/guide/bgnet/html//index.html
 bool recv_all(int socket, char* buf, int want_size_byte)
 {
-    SLIENT_COUT_CURRENT_SCOPE;
-
     int total = 0;
     int n = -1;
     int want = want_size_byte;
@@ -132,18 +125,15 @@ bool recv_all(int socket, char* buf, int want_size_byte)
     while (total < want_size_byte) {
         n = recv(socket, buf + total, want - total, 0);
         if (n == -1) {
-            std::cout << "recv fail" << std::endl;
+            std::cout << "recv fail disconnect?" << std::endl;
             return false;
         }
         if (n == 0) {
-            std::cout << "server disconnect" << std::endl;
+            std::cout << "recv fail disconnect?" << std::endl;
             return false;
         }
         total += n;
-        std::cout << "recv n bytes: " << n << std::endl;
     }
-
-    std::cout << "total :" << total << std::endl;
 
     assert(want_size_byte == total && "len != total");
 
