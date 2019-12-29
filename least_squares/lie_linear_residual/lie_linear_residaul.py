@@ -7,14 +7,17 @@ def random_angle():
     import random
     return random.uniform(-np.pi, np.pi)
 
+
 def skew_symmetric(w):
     """
       The cross operator for vector3d
     """
     w1, w2, w3 = w
-    return np.array([[0, -w3, w2],
-                     [w3, 0, -w1],
-                     [-w2, w1, 0]])
+    return np.array([
+        [0, -w3, w2],  # NOLINT
+        [w3, 0, -w1],  # NOLINT
+        [-w2, w1, 0]
+    ])
 
 
 def unskew_symmetric(W):
@@ -28,6 +31,7 @@ def skew_SO3_exp(w):
     assert np.allclose(R.T @ R, np.identity(3))
     return R
 
+
 def SO3_log_unskew(R):
     from scipy.linalg import logm
     assert np.allclose(R.T @ R, np.identity(3))
@@ -40,15 +44,15 @@ def SO3_log_unskew(R):
 
 class Problem:
     def __init__(self):
-        self.R_target = skew_SO3_exp([random_angle(),
-                                      random_angle(),
-                                      random_angle()])
+        self.R_target = skew_SO3_exp(
+            [random_angle(), random_angle(),
+             random_angle()])
 
     def residual_function(self, R):
         """
         A residual function r(R) = log(R_target.T @ R)
         """
-        residual =SO3_log_unskew(self.R_target.T @ R)
+        residual = SO3_log_unskew(self.R_target.T @ R)
         return residual
 
     def cost(self, R):
@@ -74,15 +78,15 @@ class Problem:
             dw_minus[i] = -DELTA
             R_minus = R @ skew_SO3_exp(dw_minus)
 
-            j_i = (self.residual_function(R_plus) - self.residual_function(R_minus)) / (2 * DELTA)
+            j_i = (self.residual_function(R_plus) -
+                   self.residual_function(R_minus)) / (2 * DELTA)
             jacobian[:, i] = j_i
-        
+
         return jacobian
 
+
 def gaussian_newton():
-    R_variable = skew_SO3_exp([random_angle(),
-                               random_angle(),
-                               random_angle()])
+    R_variable = skew_SO3_exp([random_angle(), random_angle(), random_angle()])
     p = Problem()
     print("R_init:", R_variable)
     print('cost:', p.cost(R_variable))
@@ -99,9 +103,10 @@ def gaussian_newton():
 
     print('single iter cost:', p.cost(R_single_iteration))
 
+
 def plot_cost_sqrt():
     p = Problem()
-    direction = np.random.rand(3,1)
+    direction = np.random.rand(3, 1)
     direction = direction / np.linalg.norm(direction)
 
     deltas = np.linspace(-np.pi, 2 * np.pi, 300)
@@ -109,7 +114,7 @@ def plot_cost_sqrt():
     plt.subplot(2, 1, 1)
     plt.plot(deltas, costs)
     plt.title('change-along-a-direction vs cost')
-    
+
     plt.subplot(2, 1, 2)
     plt.plot(deltas, [sqrt(cost) for cost in costs])
     plt.title('change-along-a-direction vs sqrt(cost)')
