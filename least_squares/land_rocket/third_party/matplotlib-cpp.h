@@ -85,6 +85,7 @@ struct _interpreter {
     PyObject *s_python_function_suptitle;
     PyObject *s_python_function_bar;
     PyObject *s_python_function_subplots_adjust;
+    PyObject *s_python_function_spy;
 
 
     /* For now, _interpreter is implemented as a singleton since its currently not possible to have
@@ -216,6 +217,7 @@ private:
         s_python_function_suptitle = safe_import(pymod, "suptitle");
         s_python_function_bar = safe_import(pymod,"bar");
         s_python_function_subplots_adjust = safe_import(pymod,"subplots_adjust");
+        s_python_function_spy = safe_import(pymod,"spy");
 #ifndef WITHOUT_NUMPY
         s_python_function_imshow = safe_import(pymod, "imshow");
 #endif
@@ -354,6 +356,32 @@ bool plot(const std::vector<Numeric> &x, const std::vector<Numeric> &y, const st
     }
 
     PyObject* res = PyObject_Call(detail::_interpreter::get().s_python_function_plot, args, kwargs);
+
+    Py_DECREF(args);
+    Py_DECREF(kwargs);
+    if(res) Py_DECREF(res);
+
+    return res;
+}
+
+template<typename Numeric>
+bool spy(const std::vector<std::vector<Numeric>> &x, const std::map<std::string, std::string>& keywords)
+{
+    // using numpy arrays
+    PyObject* xarray = get_2darray(x);
+
+    // construct positional args
+    PyObject* args = PyTuple_New(1);
+    PyTuple_SetItem(args, 0, xarray);
+
+    // construct keyword args
+    PyObject* kwargs = PyDict_New();
+    for(std::map<std::string, std::string>::const_iterator it = keywords.begin(); it != keywords.end(); ++it)
+    {
+        PyDict_SetItemString(kwargs, it->first.c_str(), PyString_FromString(it->second.c_str()));
+    }
+
+    PyObject* res = PyObject_Call(detail::_interpreter::get().s_python_function_spy, args, kwargs);
 
     Py_DECREF(args);
     Py_DECREF(kwargs);

@@ -11,6 +11,7 @@
 #include "residuals.h"
 #include "least_square_problem.h"
 #include "solver_sparse.h"
+#include "visualizer.h"
 
 
 // Inherient SparseSolver for code reuse and tests
@@ -39,7 +40,7 @@ public:
 
         // print_variables(problem.trajectory, true);
 
-        constexpr int MAX_ITERATIONS = 20;
+        constexpr int MAX_ITERATIONS = 50;
         for(int iter = 0; iter < MAX_ITERATIONS; ++iter)
         {
             ScopeProfiler p("solve_iter");
@@ -173,6 +174,8 @@ protected:
         augmented_normal_equ.rhs.setZero();
         augmented_normal_equ.rhs = construct_primal_dual_problem_rhs(
             cost_gradient, dual_variables, constrains, k_relax_complementary_slackness);
+
+        PythonmatplotVisualizer().spy_matrix(augmented_normal_equ.lhs);
     }
 
         // Solve for KKT: (Stationarity, Complementary slackness)

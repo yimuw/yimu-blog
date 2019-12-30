@@ -44,13 +44,20 @@ protected:
         // TODO: Can't find good doc for sparseView()
         const double reference = 1e-4;
         const double epsilon = 1e-6;
-        Eigen::SparseMatrix<double> sparse_lhs = normal_equ.lhs.sparseView(reference, epsilon);
+        Eigen::SparseMatrix<double> sparse_lhs;
+        {
+            ScopeProfiler p("sparseView");
+            sparse_lhs = normal_equ.lhs.sparseView(reference, epsilon);
+        }
         VectorXd &rhs = normal_equ.rhs;
 
         SOLVE_TYPE solver;
 
         if(verbose_) std::cout << "Decomposing..." << std::endl;
-        solver.compute(sparse_lhs);
+        {
+            ScopeProfiler p("matrix-decompose");
+            solver.compute(sparse_lhs);
+        }
 
         if(solver.info()!=Eigen::Success) 
         {
@@ -58,7 +65,12 @@ protected:
         }
 
         if(verbose_) std::cout << "Back sub..." << std::endl;
-        Eigen::VectorXd delta = solver.solve(rhs);
+        Eigen::VectorXd delta;
+        {
+            ScopeProfiler p("backsub");
+            delta = solver.solve(rhs);
+        }
+        
         if(solver.info()!=Eigen::Success) 
         {
             assert(false && "Back sub failed");

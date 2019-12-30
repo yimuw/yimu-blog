@@ -73,6 +73,22 @@ public:
 
         plt::show();
     }
+
+    void spy_matrix(const Eigen::MatrixXd &mat)
+    {
+        std::vector<std::vector<double>> vvmat(mat.rows(), std::vector<double>(mat.cols()));
+        for(int col = 0; col < mat.cols(); ++col)
+        {
+            for(int row = 0; row < mat.rows(); ++row)
+            {
+                vvmat[row][col] = mat(row, col);
+            }
+        }
+
+        plt::spy(vvmat, {});
+        plt::title("spy");
+        plt::show();
+    }
 private:
 
 };
