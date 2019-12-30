@@ -6,7 +6,7 @@ Lucas-Kanade implementation in C++.
 
 Check this article about Lucas-Kanade tracker basis: https://wang-yimu.com/lucas-kanade-tracker/
 
-Check this article about Lucas-Kanade tracker with covariance: <->
+Check this article about Lucas-Kanade tracker with covariance: https://wang-yimu.com/optimization-or-probability-the-uncertainty-for-optimization-problems/
 
 Check this article about Lucas-Kanade tracker on SE2: <->
 
