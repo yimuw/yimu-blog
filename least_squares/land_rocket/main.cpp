@@ -12,7 +12,10 @@ int main(int argc, char *argv[])
     RocketState end_state  (0.1, 0., 0., 0., 0., M_PI / 2.,  0., 0.);
 
     RocketLandingPlanner rocket_landing(start_state, end_state, steps);
-    rocket_landing.solve();
+    {
+        ScopeProfiler p("solve");
+        rocket_landing.solve();
+    }
     Trajectory result_traj = rocket_landing.get_trajectory();
 
     PythonmatplotVisualizer visualizer;

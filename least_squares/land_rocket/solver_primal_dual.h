@@ -28,19 +28,26 @@ public:
         num_states_ = problem.trajectory.states.size();
         num_primal_variables_ = problem.trajectory.states.size() * RocketState::STATE_SIZE;
         num_dual_variables_ = problem.constrains.linear_constrains.size();
+        const int augmented_var_size =  num_primal_variables_ + num_dual_variables_;
+
+        // avoid memory reallocation
+        NormalEqution augmented_normal_equ(augmented_var_size);
+        NormalEqution normal_equ(num_primal_variables_);
 
         VectorXd dual_vars = initialize_dual_variables();
         assert(dual_vars.size() == num_dual_variables_);
 
-        print_variables(problem.trajectory, true);
+        // print_variables(problem.trajectory, true);
 
-        constexpr int MAX_ITERATIONS = 100;
+        constexpr int MAX_ITERATIONS = 20;
         for(int iter = 0; iter < MAX_ITERATIONS; ++iter)
         {
+            ScopeProfiler p("solve_iter");
+
             problem.update_problem();
 
             // unconstrained problem
-            NormalEqution normal_equ = residual_function_to_normal_equation(problem.residuals);
+            residual_function_to_normal_equation(problem.residuals, normal_equ);
             
             // compute the gradient of the cost function
             VectorXd cost_grad = compute_cost_gradient(normal_equ, problem.trajectory, problem.residuals);
@@ -49,11 +56,11 @@ public:
             // Primal dual problem
             // Solve (Stationarity, Complementary slackness) of KKT
             const double k_relax_complementary_slackness =compute_k_relax_complementary_slackness(iter, problem, dual_vars);
-            NormalEqution augment_normal_equ = construct_primal_dual_problem(normal_equ.lhs, cost_grad, 
-                dual_vars, problem.constrains, k_relax_complementary_slackness);
+            construct_primal_dual_problem(normal_equ.lhs, cost_grad, 
+                dual_vars, problem.constrains, k_relax_complementary_slackness, augmented_normal_equ);
             
             // solve linear system
-            VectorXd delta_primal_daul = solve_normal_eqution(augment_normal_equ);
+            VectorXd delta_primal_daul = solve_normal_eqution(augmented_normal_equ);
             assert(delta_primal_daul.size() == num_primal_variables_ + num_dual_variables_);
 
             // Enforce interior point 
@@ -66,21 +73,23 @@ public:
                 break;
             }
 
-            print_variables(problem.trajectory);
+            if(false)
+            {
+                print_variables(problem.trajectory);
+                PRINT_NAME_VAR(problem.residuals.total_cost());
+                PRINT_NAME_VAR(problem.residuals.prior_cost());
+                PRINT_NAME_VAR(problem.residuals.motion_cost());
+                PRINT_NAME_VAR(problem.residuals.regularization_cost());
+            }
 
-            PRINT_NAME_VAR(problem.residuals.total_cost());
-            PRINT_NAME_VAR(problem.residuals.prior_cost());
-            PRINT_NAME_VAR(problem.residuals.motion_cost());
-            PRINT_NAME_VAR(problem.residuals.regularization_cost());
-
-            if(stop_condition(augment_normal_equ.rhs, problem.constrains, dual_vars) == true)
+            if(stop_condition(augmented_normal_equ.rhs, problem.constrains, dual_vars) == true)
             {
                 std::cout << "stop at iteration:" << iter << std::endl;
                 break;
             }
         }
 
-        print_variables(problem.trajectory, true);
+        // print_variables(problem.trajectory, true);
     }
 protected:
     double compute_k_relax_complementary_slackness(const size_t iteration, 
@@ -97,7 +106,8 @@ protected:
         
         const double surrogate_duality_gap = compute_surrogate_duality_gap(problem.constrains, dual_variables);
         const double k_relax_complementary_slackness = primal_dual_mu_ * num_dual_variables_ / surrogate_duality_gap;
-        PRINT_NAME_VAR(k_relax_complementary_slackness);
+        
+        // PRINT_NAME_VAR(k_relax_complementary_slackness);
 
         return k_relax_complementary_slackness;
     }
@@ -148,38 +158,34 @@ protected:
     }
 
     // Solve for KKT: (Stationarity, Complementary slackness)
-    NormalEqution construct_primal_dual_problem(const MatrixXd &cost_hessian,
+    void construct_primal_dual_problem(const MatrixXd &cost_hessian,
                                                 const VectorXd &cost_gradient,
                                                 const VectorXd &dual_variables, 
                                                 const Constrains &constrains,
-                                                const double k_relax_complementary_slackness)
+                                                const double k_relax_complementary_slackness,
+                                                NormalEqution &augmented_normal_equ)
     {
-        const int num_variables = cost_gradient.rows();
-        const int num_constrains = constrains.linear_constrains.size();
-        const int augmented_var_size =  num_variables + num_constrains;
+        ScopeProfiler p("construct_primal_dual_problem");
 
-        NormalEqution augmented_normal_equ(augmented_var_size);
-        augmented_normal_equ.lhs = construct_primal_dual_problem_lhs(
-            cost_hessian, dual_variables, constrains);
+        construct_primal_dual_problem_lhs(
+            cost_hessian, dual_variables, constrains, augmented_normal_equ.lhs);
+
+        augmented_normal_equ.rhs.setZero();
         augmented_normal_equ.rhs = construct_primal_dual_problem_rhs(
             cost_gradient, dual_variables, constrains, k_relax_complementary_slackness);
-
-        return augmented_normal_equ;
     }
 
         // Solve for KKT: (Stationarity, Complementary slackness)
-    MatrixXd construct_primal_dual_problem_lhs(const MatrixXd &cost_hessian,
-                                                const VectorXd &dual_variables, 
-                                                const Constrains &constrains)
+    void construct_primal_dual_problem_lhs(const MatrixXd &cost_hessian,
+                                           const VectorXd &dual_variables, 
+                                           const Constrains &constrains,
+                                           MatrixXd &augmented_normal_equ_lhs)
     {
         const int num_variables = cost_hessian.rows();
-        const int num_constrains = constrains.linear_constrains.size();
-        const int augmented_var_size =  num_variables + num_constrains;
-
-        MatrixXd relaxed_kkt_lhs = MatrixXd::Zero(augmented_var_size, augmented_var_size);
+        augmented_normal_equ_lhs.setZero();
 
         // Copy primal equation
-        relaxed_kkt_lhs.block(0, 0, num_variables, num_variables) = cost_hessian;
+        augmented_normal_equ_lhs.block(0, 0, num_variables, num_variables) = cost_hessian;
 
         // Not general, simplified for 1d linear case.
         for(size_t constrain_idx = 0; constrain_idx < constrains.linear_constrains.size(); ++constrain_idx)
@@ -193,15 +199,13 @@ protected:
             // hessian for linear constrain is 0. Don't need to update it
 
             // upper right block
-            relaxed_kkt_lhs(correspond_primal_index, dual_var_index) = constrain_linear.jacobian();
+            augmented_normal_equ_lhs(correspond_primal_index, dual_var_index) = constrain_linear.jacobian();
             // lower left block
-            relaxed_kkt_lhs(dual_var_index, correspond_primal_index) 
+            augmented_normal_equ_lhs(dual_var_index, correspond_primal_index) 
                 = - dual_variables[constrain_idx] * constrain_linear.jacobian();
             // lower right block
-            relaxed_kkt_lhs(dual_var_index, dual_var_index) = - constrain_linear.h();
+            augmented_normal_equ_lhs(dual_var_index, dual_var_index) = - constrain_linear.h();
         }
-
-        return relaxed_kkt_lhs;
     }
 
     VectorXd construct_primal_dual_problem_rhs(const VectorXd &cost_gradient,
@@ -339,10 +343,10 @@ protected:
         dual_variables += final_line_search_step * dual_step;
         problem.trajectory = update_primal_variables(primal_step, final_line_search_step, problem.trajectory);
 
-        PRINT_NAME_VAR(dual_feasible_status);
-        PRINT_NAME_VAR(primal_feasible_status);
-        PRINT_NAME_VAR(search_success);
-        PRINT_NAME_VAR(final_line_search_step);
+        // PRINT_NAME_VAR(dual_feasible_status);
+        // PRINT_NAME_VAR(primal_feasible_status);
+        // PRINT_NAME_VAR(search_success);
+        // PRINT_NAME_VAR(final_line_search_step);
 
         return true;
     }
@@ -367,8 +371,8 @@ protected:
     {
         const double primal_dual_cost = residual.transpose() * residual;
         const double surrogate_duality_gap = compute_surrogate_duality_gap(constrains, dual_variables);
-        PRINT_NAME_VAR(surrogate_duality_gap);
-        PRINT_NAME_VAR(primal_dual_cost);
+        // PRINT_NAME_VAR(surrogate_duality_gap);
+        // PRINT_NAME_VAR(primal_dual_cost);
         if(primal_dual_cost > 1e-2)
         {
             return false;

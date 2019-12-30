@@ -15,7 +15,8 @@ class DenseSolverUpdateInPlace : public DenseSolver
 public:
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
     {
-        NormalEqution normal_equ = residual_function_to_normal_equation(residual);
+        NormalEqution normal_equ;
+        residual_function_to_normal_equation(residual, normal_equ);
         apply_regularization_to_hessian(residual, normal_equ);
         return solve_normal_eqution(normal_equ);
     }
@@ -61,13 +62,18 @@ protected:
         residual_idx += residual.residual_size();
     }
 
-    NormalEqution residual_function_to_normal_equation(const RocketLandingResiduals &residual)
+    void residual_function_to_normal_equation(const RocketLandingResiduals &residual,
+                                                       NormalEqution &normal_equ)
     {
-        std::cout << "Constructing sparse system..." << std::endl;
-        const int num_variables = residual.total_variable_size();
-        const int num_equations = residual.total_residual_size();
+        ScopeProfiler p("residual_function_to_normal_equation");
 
-        NormalEqution equ(num_variables);
+        normal_equ.lhs.setZero();
+        normal_equ.rhs.setZero();
+
+        if(verbose_) std::cout << "Constructing sparse system..." << std::endl;
+        
+        // const int num_variables = residual.total_variable_size();
+        const int num_equations = residual.total_residual_size();
 
         int residual_idx = 0;
 
@@ -76,19 +82,17 @@ protected:
         //       We want A to be "close to" diagnal. 
 
         // start state
-        add_residual_direct_update(residual.start_state_prior, residual_idx, equ);
+        add_residual_direct_update(residual.start_state_prior, residual_idx, normal_equ);
  
         // motions
         for(const auto &motion_r : residual.motion_residuals)
         {
-            add_residual_direct_update(motion_r, residual_idx, equ);
+            add_residual_direct_update(motion_r, residual_idx, normal_equ);
         }
 
         // end state
-        add_residual_direct_update(residual.end_state_prior, residual_idx, equ);
+        add_residual_direct_update(residual.end_state_prior, residual_idx, normal_equ);
 
         assert(residual_idx == num_equations && "residual_idx messy up");
-
-        return equ;
     }
 };

@@ -18,7 +18,8 @@ class SparseSolver : public DenseSolverUpdateInPlace
 public:
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
     {
-        NormalEqution normal_equ = residual_function_to_normal_equation(residual);
+        NormalEqution normal_equ;
+        residual_function_to_normal_equation(residual, normal_equ);
         apply_regularization_to_hessian(residual, normal_equ);
         return solve_normal_eqution(normal_equ);
     }
@@ -26,6 +27,7 @@ public:
 protected:
     virtual VectorXd solve_normal_eqution(NormalEqution &normal_equ) override
     {
+        ScopeProfiler p("solve_normal_equation");
 #ifdef CHOLMOD_SUPPORT
         // Cholesky for A.T * A system
         return solve_normal_eqution_sparse<Eigen::CholmodSupernodalLLT<Eigen::SparseMatrix<double>>>(normal_equ);
@@ -37,7 +39,8 @@ protected:
     template<typename SOLVE_TYPE>
     VectorXd solve_normal_eqution_sparse(NormalEqution &normal_equ)
     {
-        std::cout << "Creating SparseView..." << std::endl;
+        if(verbose_) std::cout << "Creating SparseView..." << std::endl;
+        
         // TODO: Can't find good doc for sparseView()
         const double reference = 1e-4;
         const double epsilon = 1e-6;
@@ -46,7 +49,7 @@ protected:
 
         SOLVE_TYPE solver;
 
-        std::cout << "Decomposing..." << std::endl;
+        if(verbose_) std::cout << "Decomposing..." << std::endl;
         solver.compute(sparse_lhs);
 
         if(solver.info()!=Eigen::Success) 
@@ -54,7 +57,7 @@ protected:
             assert(false && "Decompose failed");
         }
 
-        std::cout << "Back sub..." << std::endl;
+        if(verbose_) std::cout << "Back sub..." << std::endl;
         Eigen::VectorXd delta = solver.solve(rhs);
         if(solver.info()!=Eigen::Success) 
         {
@@ -63,4 +66,6 @@ protected:
 
         return delta;
     }
+
+    bool verbose_ = false;
 };

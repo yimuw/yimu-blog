@@ -1,7 +1,9 @@
 #pragma once
 
 #include <iomanip>
+#include <algorithm>
 #include <iostream>
+#include <chrono>
 
 #include "least_square_problem.h"
 
@@ -46,3 +48,24 @@ Trajectory update_primal_variables(const VectorXd &delta,
     }
     return result;
 }
+
+struct ScopeProfiler
+{
+    using time_point = std::chrono::steady_clock::time_point;
+
+    ScopeProfiler(const std::string &info)
+        : info_(info)
+    {
+        begin_ = std::chrono::steady_clock::now();
+    }
+    
+    ~ScopeProfiler()
+    {
+        time_point end = std::chrono::steady_clock::now();
+        auto elapsed_msec = std::chrono::duration_cast<std::chrono::microseconds>(end - begin_).count();
+        std::cout << "Profiler: " << info_ << " msec:" << elapsed_msec / 1000. << std::endl;
+    }
+
+    std::string info_;
+    time_point begin_;
+};

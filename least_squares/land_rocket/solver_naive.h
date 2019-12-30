@@ -34,6 +34,8 @@ public:
 
     struct NormalEqution
     {
+        NormalEqution() = default;
+
         NormalEqution(const size_t num_variables)
             : lhs(MatrixXd::Zero(num_variables, num_variables)),
               rhs(VectorXd::Zero(num_variables))
@@ -92,7 +94,7 @@ protected:
 
     LinearizedResidual linearized_residual_function(const RocketLandingResiduals &residual)
     {
-        std::cout << "Constructing sparse system..." << std::endl;
+        if(verbose_) std::cout << "Constructing sparse system..." << std::endl;
         const int num_variables = residual.total_variable_size();
         const int num_equations = residual.total_residual_size();
 
@@ -127,7 +129,7 @@ protected:
                         const RocketLandingResiduals &residual,
                         NormalEqution &normal_equation)
     {
-        std::cout << "computing regularization..." << std::endl;
+        if(verbose_)  std::cout << "computing regularization..." << std::endl;
 
         const size_t num_variables = residual.total_variable_size();
         VectorXd reg_matrix_diag = VectorXd::Zero(num_variables);
@@ -144,19 +146,19 @@ protected:
 
         if(residual.time_regularization > 0)
         {
-            std::cout << "residual.time_regularization: " << residual.time_regularization << std::endl;
+            if(verbose_)  std::cout << "residual.time_regularization: " << residual.time_regularization << std::endl;
             set_regularization_func(residual.time_regularization, RocketState::i_dt);
         }
 
         if(residual.acceleration_regularization > 0)
         {
-            std::cout << "residual.acceleration_regularization: " << residual.acceleration_regularization << std::endl;
+            if(verbose_)  std::cout << "residual.acceleration_regularization: " << residual.acceleration_regularization << std::endl;
             set_regularization_func(residual.acceleration_regularization, RocketState::i_acceleration);
         }
 
         if(residual.turning_rate_regularization > 0)
         {
-            std::cout << "residual.turning_rate_regularization: " << residual.turning_rate_regularization << std::endl;
+            if(verbose_)  std::cout << "residual.turning_rate_regularization: " << residual.turning_rate_regularization << std::endl;
             set_regularization_func(residual.turning_rate_regularization, RocketState::i_turning_rate);
         }
     }
@@ -172,11 +174,11 @@ protected:
     {
         const int num_variables = equ.jacobi.cols();
 
-        std::cout << "computing lhs & rhs..." << std::endl;
-        std::cout << "Jacobian size: " << equ.jacobi.rows() 
+        if(verbose_) std::cout << "computing lhs & rhs..." << std::endl;
+        if(verbose_) std::cout << "Jacobian size: " << equ.jacobi.rows() 
             << "," << equ.jacobi.cols() << std::endl;
 
-        std::cout << "A * weight ..." << std::endl;
+        if(verbose_) std::cout << "A * weight ..." << std::endl;
         // A.t * W, when W is diagnal
         MatrixXd At_times_W = equ.jacobi.transpose();
         for(int col = 0; col < At_times_W.cols(); ++col)
@@ -200,4 +202,6 @@ protected:
         VectorXd delta = (lhs).llt().solve(rhs);
         return delta;
     }
+
+    bool verbose_ = false;
 };
