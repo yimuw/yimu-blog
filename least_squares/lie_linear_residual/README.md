@@ -1,10 +1,16 @@
-# Time Calibration
+# Optimization on Manifold, the linear case
 
-Time Calibration implementation in Python.
+The implementation of solving a simple optimization problem on Manifold in Python.
+
+The optimization problem to solve
+
+
+$$\text{cost}(R) = ||Log(R_{target}^T * R)||^2$$
+
 
 ## 1. Reading
 
-Check this article about Time calibration least squares problem : <->
+Check this article about Time calibration least squares problem : https://wang-yimu.com/introduction-to-optimization-on-manifolds/
 
 ## 2 Dependency
 
@@ -59,13 +65,13 @@ If venv is not active, active venv by
 yimu@yimu-mate:<path to>/yimu-blog$ source .venv/bin/activate
 ```
 
-Run code,
+Run the code,
 
 ```
-(.venv) yimu@yimu-mate:<path to>/yimu-blog$ python3 least_squares/time_calibration/time_calibration.py
+(.venv) yimu@yimu-mate:<path to>/yimu-blog$ python3 least_squares/lie_linear_residual/lie_linear_residaul.py
 ```
 
-deactive venv
+Deactive venv
 ```
 (.venv) yimu@yimu-mate:<path to>/yimu-blog$ deactivate
 ```
