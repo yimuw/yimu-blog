@@ -8,7 +8,7 @@
 #include "least_square_problem.h"
 
 
-#define PRINT_NAME_VAR(var) std::cout << std::setprecision(5) << #var << " :\n" << var << std::endl
+#define PRINT_NAME_VAR(var) std::cout << std::setprecision(5) << #var << " :" << var << std::endl
 
 void print_variables(Trajectory trajectory, bool with_prediction = false)
 {

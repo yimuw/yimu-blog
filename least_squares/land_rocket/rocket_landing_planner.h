@@ -25,7 +25,10 @@ public:
     void solve()
     {
         // Primal Dual Interior Point handles iteration internally. 
-        RocketLandingSolver_PrimalDualInteriorPoint solver;
+        
+        // RocketLandingSolver_PrimalDualInteriorPoint solver;
+        RocketLandingSolver_PrimalDualInteriorPointStructural solver;
+        
         solver.solver_rocket_landing_constrained_least_squares(config_, problem_);
     }
 

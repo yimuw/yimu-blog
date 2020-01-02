@@ -56,7 +56,7 @@ public:
 
             // Primal dual problem
             // Solve (Stationarity, Complementary slackness) of KKT
-            const double k_relax_complementary_slackness =compute_k_relax_complementary_slackness(iter, problem, dual_vars);
+            const double k_relax_complementary_slackness = compute_k_relax_complementary_slackness(iter, problem, dual_vars);
             construct_primal_dual_problem(normal_equ.lhs, cost_grad, 
                 dual_vars, problem.constrains, k_relax_complementary_slackness, augmented_normal_equ);
             
@@ -159,7 +159,7 @@ protected:
     }
 
     // Solve for KKT: (Stationarity, Complementary slackness)
-    void construct_primal_dual_problem(const MatrixXd &cost_hessian,
+    virtual void construct_primal_dual_problem(const MatrixXd &cost_hessian,
                                                 const VectorXd &cost_gradient,
                                                 const VectorXd &dual_variables, 
                                                 const Constrains &constrains,
@@ -175,7 +175,7 @@ protected:
         augmented_normal_equ.rhs = construct_primal_dual_problem_rhs(
             cost_gradient, dual_variables, constrains, k_relax_complementary_slackness);
 
-        PythonmatplotVisualizer().spy_matrix(augmented_normal_equ.lhs);
+        // PythonmatplotVisualizer().spy_matrix(augmented_normal_equ.lhs);
     }
 
         // Solve for KKT: (Stationarity, Complementary slackness)
@@ -238,7 +238,6 @@ protected:
             relaxed_kkt_rhs(dual_var_index) -= - dual_variables[constrain_idx] * constrain_linear.h() 
                 - 1. / k_relax_complementary_slackness;
         }
-
         return relaxed_kkt_rhs;
     }
 
@@ -348,8 +347,8 @@ protected:
 
         // PRINT_NAME_VAR(dual_feasible_status);
         // PRINT_NAME_VAR(primal_feasible_status);
-        // PRINT_NAME_VAR(search_success);
-        // PRINT_NAME_VAR(final_line_search_step);
+        PRINT_NAME_VAR(search_success);
+        PRINT_NAME_VAR(final_line_search_step);
 
         return true;
     }
@@ -376,12 +375,12 @@ protected:
         const double surrogate_duality_gap = compute_surrogate_duality_gap(constrains, dual_variables);
         // PRINT_NAME_VAR(surrogate_duality_gap);
         // PRINT_NAME_VAR(primal_dual_cost);
-        if(primal_dual_cost > 1e-2)
+        if(primal_dual_cost > 1e-4)
         {
             return false;
         }
 
-        if(surrogate_duality_gap > 1e-2)
+        if(surrogate_duality_gap > 1e-4)
         {
             return false;
         }

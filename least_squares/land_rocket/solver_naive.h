@@ -32,22 +32,6 @@ public:
         MatrixXd weight;
     };
 
-    struct NormalEqution
-    {
-        NormalEqution() = default;
-
-        NormalEqution(const size_t num_variables)
-            : lhs(MatrixXd::Zero(num_variables, num_variables)),
-              rhs(VectorXd::Zero(num_variables))
-        {
-        }
-        // A.T * W * A
-        MatrixXd lhs;
-
-        // - A.T * b
-        VectorXd rhs;
-    };
-
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) = 0;
 
 protected:

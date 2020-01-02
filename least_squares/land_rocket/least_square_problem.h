@@ -134,9 +134,10 @@ struct LinearConstrain1D
 {
     LinearConstrain1D(const int state_idx,
                       const int type_idx,
+                      const int dual_idx,
                       const double xin, 
                       const double kin)
-        : state_index(state_idx), type_index(type_idx), x(xin), k(kin)
+        : state_index(state_idx), type_index(type_idx), dual_index(dual_idx), x(xin), k(kin)
     {
     }
 
@@ -157,6 +158,7 @@ struct LinearConstrain1D
 
     int state_index = {-1};
     int type_index = {-1};
+    int dual_index = {-1};
     double x = 0.;
     double k = 0.;
 };
@@ -188,10 +190,10 @@ struct Constrains
             const RocketState &state = trajectory.states[si];
             using S = RocketState;
             // s.x > 0 =>  h(x) = x - k < 0 => x = - s.x, k = 0
-            linear_constrains.emplace_back(si, S::i_position_y, state.position().y(), min_position_y);
+            linear_constrains.emplace_back(si, S::i_position_y, 0, state.position().y(), min_position_y);
             // s.a > 0 => x = - s.a, k = 0
-            linear_constrains.emplace_back(si, S::i_acceleration, state.acceleration(), min_acceleration);
-            linear_constrains.emplace_back(si, S::i_dt, state.delta_time(), min_dt);
+            linear_constrains.emplace_back(si, S::i_acceleration, 1, state.acceleration(), min_acceleration);
+            linear_constrains.emplace_back(si, S::i_dt, 2, state.delta_time(), min_dt);
         }
     }
 
