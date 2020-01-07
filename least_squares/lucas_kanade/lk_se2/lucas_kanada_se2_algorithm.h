@@ -77,15 +77,14 @@ public:
         ++frame_count_;
     }
 
-    void show_features(const std::string wname = "features",
-        const size_t dt = 50)
+    cv::Mat show_features(const std::string wname = "features",
+        const size_t dt = 10)
     {
         cv::Mat im_debug = last_im_.clone();
         for (const auto& p : cur_features_locations_) {
             cv::circle(im_debug, p, 10, 240);
         }
-        cv::imshow(wname, im_debug);
-        cv::waitKey(dt);
+        return im_debug;
     }
 
     cv::Mat compute_derivatives(const cv::Mat& src, const std::string& type)
@@ -146,7 +145,7 @@ private:
 
             Velocity delta = solve_normal_equation(J, b);
             optimization_vars = optimization_vars.add(delta);
-            // Minus because of dx,dy is moded as last_x + dx = cur_x
+            // Minus because of dx,dy is modeled as last_x + dx = cur_x
             feature_loc_cur_frame -= { delta.x, delta.y };
             if (not feature_within_image(feature_loc_cur_frame)) {
                 std::cout << "feature out of bound in GN iteration" << std::endl;
@@ -212,6 +211,7 @@ private:
         const float cost = std::cos(velocity.theta);
         const float x = xy.x;
         const float y = xy.y;
+        // Technically, it is (so2 + t2)
         // (x2, y2) = T(p) = R * (x1, y1) + t
         cv::Mat jacobian_xy_wrt_se2 = (cv::Mat_<float>(2, 3)
                 << -sint * x - cost * y,
@@ -220,7 +220,8 @@ private:
         return jacobian_xy_wrt_se2;
     }
 
-    cv::Mat compute_b(const Velocity& velocity,
+    cv::Mat compute_b(
+        const Velocity& velocity,
         const cv::Point2f& location,
         const cv::Mat& last_im,
         const cv::Mat& cur_im)

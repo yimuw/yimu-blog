@@ -23,13 +23,13 @@ struct RotationRectSimulator {
         co_ordinates[0].push_back(roi[1]);
         co_ordinates[0].push_back(roi[2]);
         co_ordinates[0].push_back(roi[3]);
-        cv::drawContours(image, co_ordinates, 0, 0.5, CV_FILLED);
+        cv::drawContours(image, co_ordinates, 0, 100, CV_FILLED);
 
         // more region with gredient.
         cv::GaussianBlur(image, image, cv::Size(11, 11), 0, 0, cv::BORDER_DEFAULT);
 
-        if (true) {
-            imshow("write process", image);
+        if (false) {
+            imshow("generated images", image);
             cv::waitKey(20);
         }
 
@@ -91,8 +91,8 @@ struct RotationRectSimulator {
     float t_y_ = 0;
     float t_theta_ = 0;
     // rect  const
-    const float image_length_ = 1000;
-    const cv::Point2f center_ = { 200, 200 };
+    const float image_length_ = 800;
+    const cv::Point2f center_ = { 100, 100 };
     const float rect_half_length_ = 50;
 };
 
@@ -101,15 +101,25 @@ int main(int argc, char* argv[])
     RotationRectSimulator imageio;
 
     LucasKanadaTrackerSE2 lk_tracker;
+    cv::VideoWriter video("lk-se2.avi", CV_FOURCC('M', 'J', 'P', 'G'), 24, 
+        cv::Size(imageio.image_length_, imageio.image_length_));
 
     while (imageio.has_more()) {
         const auto image = imageio.read_next();
 
-        constexpr int IMAGE_DT_MS = 10;
+        constexpr int IMAGE_DT_MS = 1;
         lk_tracker.track(image);
 
-        lk_tracker.show_features("features", IMAGE_DT_MS);
+        const cv::Mat gray_frame = lk_tracker.show_features("LK se(2) tracker", IMAGE_DT_MS);
+        
+        cv::Mat frame;
+        gray_frame.convertTo(frame, CV_8U);
+        cv::imshow("LK se(2) tracker", frame);
+        cv::waitKey(IMAGE_DT_MS);
+        cv::cvtColor(frame, frame, CV_GRAY2BGR);
+        video.write(frame);
     }
+    video.release();
 
     return 0;
 }
