@@ -1,15 +1,13 @@
 #pragma once
 
-#include "types.h"
 #include "third_party/matplotlib-cpp.h"
+#include "types.h"
 
 namespace plt = matplotlibcpp;
 
-
-class PythonmatplotVisualizer
-{
+class PythonmatplotVisualizer {
 public:
-    void plot_trajectory(const Trajectory &trajectory)
+    void plot_trajectory(const Trajectory& trajectory)
     {
         std::vector<double> dts;
         std::vector<double> pxs;
@@ -22,8 +20,7 @@ public:
 
         assert(trajectory.states.size() > 0);
 
-        for(const auto &s : trajectory.states)
-        {
+        for (const auto& s : trajectory.states) {
             dts.push_back(s.delta_time());
             pxs.push_back(s.position().x());
             pys.push_back(s.position().y());
@@ -39,48 +36,46 @@ public:
         std::partial_sum(dts.begin(), dts.end(), times.begin());
 
         assert(times.size() == pxs.size());
-        plt::subplot(3,3,1);
+        plt::subplot(3, 3, 1);
         plt::title("time vs position_x");
         plt::plot(times, pxs);
 
-        plt::subplot(3,3,2);
+        plt::subplot(3, 3, 2);
         plt::title("time vs position_y");
         plt::plot(times, pys);
 
-        plt::subplot(3,3,3);
+        plt::subplot(3, 3, 3);
         plt::title("time vs heading");
         plt::plot(times, headings);
 
-        plt::subplot(3,3,4);
+        plt::subplot(3, 3, 4);
         plt::title("time vs vx");
         plt::plot(times, vx);
 
-        plt::subplot(3,3,5);
+        plt::subplot(3, 3, 5);
         plt::title("time vs vy");
         plt::plot(times, vy);
 
-        plt::subplot(3,3,6);
+        plt::subplot(3, 3, 6);
         plt::title("time vs accelerations");
         plt::plot(times, accelerations);
 
-        plt::subplot(3,3,7);
+        plt::subplot(3, 3, 7);
         plt::title("time vs turning_rates");
         plt::plot(times, turning_rates);
 
-        plt::subplot(3,3,8);
+        plt::subplot(3, 3, 8);
         plt::title("time");
         plt::plot(times);
 
         plt::show();
     }
 
-    void spy_matrix(const Eigen::MatrixXd &mat)
+    void spy_matrix(const Eigen::MatrixXd& mat)
     {
         std::vector<std::vector<double>> vvmat(mat.rows(), std::vector<double>(mat.cols()));
-        for(int col = 0; col < mat.cols(); ++col)
-        {
-            for(int row = 0; row < mat.rows(); ++row)
-            {
+        for (int col = 0; col < mat.cols(); ++col) {
+            for (int row = 0; row < mat.rows(); ++row) {
                 vvmat[row][col] = mat(row, col);
             }
         }
@@ -89,6 +84,6 @@ public:
         plt::title("spy");
         plt::show();
     }
-private:
 
+private:
 };

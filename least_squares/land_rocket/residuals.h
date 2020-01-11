@@ -168,7 +168,7 @@ struct MotionResidual : public Residual
         Vector8d weight_diag;
 
         //  dt, x, y, vel_x, vel_y, heading, turn_rate, accl
-        weight_diag << 1e3, 1e3, 1e3, 1e4, 1e4, 1e5, 1e2, 1e1;
+        weight_diag << 1e5, 1e3, 1e3, 1e4, 1e4, 1e5, 1e2, 1e1;
 
         Matrix8d weight = MatrixXd::Identity(residual_size, residual_size);
         weight.diagonal() << weight_scale * weight_diag;

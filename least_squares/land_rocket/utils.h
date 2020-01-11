@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 #include <chrono>
 
 #include "least_square_problem.h"
@@ -75,3 +76,23 @@ struct ScopeProfiler
     std::string info_;
     time_point begin_;
 };
+
+void save_trajectory_as_csv(const std::string &path, const Trajectory &trajectory)
+{
+    std::ofstream myfile;
+    myfile.open(path);
+
+    for (const auto& s : trajectory.states) {
+        // dt, x, y, heading, vx, vy, accl, heading_dot
+        myfile << s.delta_time() << " ";
+        myfile << s.position().x() << " ";
+        myfile << s.position().y() << " ";
+        myfile << s.heading() << " ";
+        myfile << s.velocity().x() << " ";
+        myfile << s.velocity().y() << " ";
+        myfile << s.acceleration() << " ";
+        myfile << s.turning_rate() << "\n";
+    }
+
+    myfile.close();
+}
