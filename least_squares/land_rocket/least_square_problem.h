@@ -72,6 +72,18 @@ struct RocketLandingResiduals
     {
         return prior_cost() + motion_cost() + regularization_cost();
     }
+
+    Trajectory get_variables() const
+    {
+        Trajectory traj;
+        for(const auto &m_residual : motion_residuals)
+        {
+            traj.states.push_back(m_residual.state1);
+        }
+        traj.states.push_back(motion_residuals.back().state2);
+        assert(static_cast<int>(traj.states.size()) == num_rocket_states);
+        return traj;
+    }
     
     // Using residual types explicitly.
     // Motivation is residual ordering matters in solving Ax=b.

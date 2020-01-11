@@ -40,8 +40,9 @@ public:
 
         // print_variables(problem.trajectory, true);
 
-        constexpr int MAX_ITERATIONS = 50;
-        for(int iter = 0; iter < MAX_ITERATIONS; ++iter)
+        constexpr int MAX_ITERATIONS = 200;
+        int iter = 0;
+        for(; iter < MAX_ITERATIONS; ++iter)
         {
             ScopeProfiler p("solve_iter");
 
@@ -88,6 +89,11 @@ public:
                 std::cout << "stop at iteration:" << iter << std::endl;
                 break;
             }
+        }
+
+        if(iter == MAX_ITERATIONS)
+        {
+            std::cout << "warning: not converged" << std::endl; 
         }
 
         // print_variables(problem.trajectory, true);
@@ -371,7 +377,7 @@ protected:
                         const Constrains &constrains,
                         const VectorXd &dual_variables)
     {
-        const double primal_dual_cost = residual.transpose() * residual;
+        const double primal_dual_cost = float(residual.transpose() * residual) / num_states_;
         const double surrogate_duality_gap = compute_surrogate_duality_gap(constrains, dual_variables);
         // PRINT_NAME_VAR(surrogate_duality_gap);
         // PRINT_NAME_VAR(primal_dual_cost);

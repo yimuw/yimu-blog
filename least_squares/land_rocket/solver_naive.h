@@ -108,23 +108,26 @@ protected:
     }
 
     // basically, cost = ||Ax||^2 + k*||x||^2
-    //            hessian_of_cost = A^*A + k*I
+    //            hessian_of_cost = A^T*A + 2 * k*I
+    //            grad_of_cost = A^T b + 2 * x
     void apply_regularization_to_hessian(
                         const RocketLandingResiduals &residual,
                         NormalEqution &normal_equation)
     {
         if(verbose_)  std::cout << "computing regularization..." << std::endl;
 
-        const size_t num_variables = residual.total_variable_size();
-        VectorXd reg_matrix_diag = VectorXd::Zero(num_variables);
+        const Trajectory trajectory = residual.get_variables();
 
-        auto set_regularization_func = [&residual, &reg_matrix_diag, &normal_equation]
+        auto set_regularization_func = [&residual, &trajectory, &normal_equation]
                                    (const double regularization, const int reg_idx)
         {
             for(int state_i = 0; state_i < residual.num_rocket_states; ++state_i)
             {
                 const int var_idx = state_i * RocketState::STATE_SIZE + reg_idx;
                 normal_equation.lhs(var_idx, var_idx) += 2 * regularization;
+
+                normal_equation.rhs(var_idx) += - 2 * regularization 
+                    * trajectory.states[state_i].variables[reg_idx];
             }
         };
 
