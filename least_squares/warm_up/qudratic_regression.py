@@ -12,7 +12,7 @@ def generate_quadratic_data():
     noise = 2 * np.random.randn(num_data)
 
     sampled_x = np.linspace(-10, 10., num_data)
-    sampled_y = quadratic_a + sampled_x * sampled_x + quadratic_b * sampled_x + quadratic_c + noise
+    sampled_y = quadratic_a * sampled_x * sampled_x + quadratic_b * sampled_x + quadratic_c + noise
 
     return sampled_x, sampled_y
 
@@ -66,9 +66,10 @@ def main():
 
     x = np.linspace(-12, 12., 100)
     a, b, c = theta
+    print('fitted coefficient (a,b,c):', theta.transpose())
     pred_y = a * x * x + b * x + c
 
-    p1 = plt.plot(x_data, y_data, '*')
+    p1 = plt.plot(x_data, y_data, '*r')
     p2 = plt.plot(x, pred_y, 'g')
     plt.legend((p1[0], p2[0]), ('sampled data', 'fitted function'))
     plt.title('Data points vs Fitted curve')

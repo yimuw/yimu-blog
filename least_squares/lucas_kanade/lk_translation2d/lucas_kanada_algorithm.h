@@ -262,7 +262,7 @@ private:
             }
         }
 
-        assert(count == patch_size);
+        assert(static_cast<int>(count) == patch_size);
         return jacobian;
     }
 
@@ -288,7 +288,7 @@ private:
             }
         }
 
-        assert(count == patch_size);
+        assert(static_cast<int>(count) == patch_size);
 
         return b;
     }
