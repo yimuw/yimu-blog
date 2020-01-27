@@ -53,7 +53,7 @@ RocketLandingResiduals generate_data()
 {
     RocketState start_state(1., 0., 0., 0., 0., 0., 0., 0.);
     RocketState end_state(1., 100., 100., 0., 0., 0., 0., 0.);
-    int steps = 20;
+    int steps = 50;
 
     Test_RocketLandingPlanner rocket_landing(start_state, end_state, steps);
     RocketLandingResiduals r = rocket_landing.TEST_get_problem().residuals;
@@ -125,7 +125,8 @@ struct TEST_RocketLandingSolver_PrimalDualInteriorPoint : public RocketLandingSo
             }
         }
 
-        NormalEqution normal_equ = residual_function_to_normal_equation(problem.residuals);
+        NormalEqution normal_equ(problem.residuals.total_variable_size());
+        residual_function_to_normal_equation(problem.residuals, normal_equ);
         VectorXd cost_grad_analytic = compute_cost_gradient(normal_equ, problem.trajectory, problem.residuals);
         PRINT_NAME_VAR(problem.residuals.total_cost());
         PRINT_NAME_VAR(cost_grad_analytic.transpose());

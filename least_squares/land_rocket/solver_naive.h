@@ -45,6 +45,7 @@ class DenseSolver : public RocketLandingSolver
 public:
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual)
     {
+        ScopeProfiler p("DenseSolver:solver_rocket_landing_least_squares");
         const LinearizedResidual linearized_residuals = linearized_residual_function(residual);
         NormalEqution normal_equ = linear_function_to_normal_equation(linearized_residuals);
         apply_regularization_to_hessian(residual, normal_equ);
@@ -159,6 +160,7 @@ protected:
     //       A.t * W * A * x = - A.t * W * b
     NormalEqution linear_function_to_normal_equation(const LinearizedResidual &equ)
     {
+        ScopeProfiler p("linear_function_to_normal_equation");
         const int num_variables = equ.jacobi.cols();
 
         if(verbose_) std::cout << "computing lhs & rhs..." << std::endl;
@@ -182,6 +184,7 @@ protected:
 
     virtual VectorXd solve_normal_eqution(NormalEqution &quadratic)
     {
+        ScopeProfiler p("solve_normal_eqution eigen");
         auto &lhs = quadratic.lhs;
         auto &rhs = quadratic.rhs;
 

@@ -18,7 +18,8 @@ class SparseSolver : public DenseSolverUpdateInPlace
 public:
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
     {
-        NormalEqution normal_equ;
+        ScopeProfiler p("SparseSolver:solver_rocket_landing_least_squares");
+        NormalEqution normal_equ(residual.total_variable_size());
         residual_function_to_normal_equation(residual, normal_equ);
         apply_regularization_to_hessian(residual, normal_equ);
         return solve_normal_eqution(normal_equ);

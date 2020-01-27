@@ -8,6 +8,7 @@ project(rocket-landing)
 
 include_directories( /usr/include/suitesparse )
 include_directories( /usr/include/eigen3 )
+include_directories( ${PYTHON_INCLUDE_DIRS} )
 
 # tricky with anaconda
 # TODO: docker
@@ -22,10 +23,14 @@ target_link_libraries(rocket_landing
                       cholmod)
 
 
-#add_executable(tests
-#               tests.cpp)
-#target_link_libraries(tests 
-#                      cholmod)
+add_executable(tests
+               tests.cpp)
+target_link_libraries(tests 
+                      ${PYTHON_LIBRARIES}
+                      cholmod)
+target_include_directories(tests PRIVATE
+                           ${PYTHON_INCLUDE_DIRS})
+
 
 
 
