@@ -25,11 +25,21 @@ public:
     void solve()
     {
         // Primal Dual Interior Point handles iteration internally. 
+        std::shared_ptr<RocketLandingSolver_PrimalDualInteriorPoint> primal_dual_solver_ptr;
+        if(config_.solve_type == "sparse")
+        {
+            primal_dual_solver_ptr = std::make_shared<RocketLandingSolver_PrimalDualInteriorPoint>();
+        }
+        else if(config_.solve_type == "structural")
+        {
+            primal_dual_solver_ptr = std::make_shared<RocketLandingSolver_PrimalDualInteriorPointStructural>();
+        }
+        else
+        {
+            assert(false && "unknow solver type");
+        }
         
-        // RocketLandingSolver_PrimalDualInteriorPoint solver;
-        RocketLandingSolver_PrimalDualInteriorPointStructural solver;
-        
-        solver.solver_rocket_landing_constrained_least_squares(config_, problem_);
+        primal_dual_solver_ptr->solver_rocket_landing_constrained_least_squares(config_, problem_);
     }
 
     Trajectory get_trajectory() const

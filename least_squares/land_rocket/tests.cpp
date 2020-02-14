@@ -74,11 +74,14 @@ void test_solvers()
     const RocketLandingResiduals r = generate_data();
 
     // ground truth
+    std::cout << "1.DenseSolver" << std::endl;
     VectorXd delta_dense = solve_by<DenseSolver>(r);
 
+    std::cout << "2.DenseSolverUpdateInPlace" << std::endl;
     VectorXd delta_dense_in_place = solve_by<DenseSolverUpdateInPlace>(r);
     test_matrix_almost_equation(delta_dense_in_place, delta_dense);
 
+    std::cout << "3.SparseSolver" << std::endl;
     VectorXd sparse_delta = solve_by<SparseSolver>(r);
     test_matrix_almost_equation(sparse_delta, delta_dense);
 }
@@ -147,6 +150,31 @@ void cost_gradient_checking()
     tester_solver.cost_gradient_checking(tester_landing.TEST_get_config(), problem_for_test);
 }
 
+void primal_dual_profile()
+{
+    // //  dt, x, y, vx, vy, heading, turn_rate, accl
+    int steps = 50;
+    RocketState start_state(0.1, -10., 10., 1., 0., M_PI / 10., 0., 0);
+    RocketState end_state  (0.1, 0., 0., 0., 0., M_PI / 2.,  0., 0.);
+    {
+        RocketLandingPlanner rocket_landing(start_state, end_state, steps);
+        rocket_landing.config_.solve_type = "sparse";
+        {
+            ScopeProfiler p("primal_dual_sparse_solver");
+            rocket_landing.solve();
+        }
+    }
+
+    {
+        RocketLandingPlanner rocket_landing(start_state, end_state, steps);
+        rocket_landing.config_.solve_type = "structural";
+        {
+            ScopeProfiler p("primal_dual_structural_solver");
+            rocket_landing.solve();
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     std::cout << "test_solvers =========================================" << std::endl;
@@ -154,6 +182,9 @@ int main(int argc, char *argv[])
 
     std::cout << "cost_gradient_checking =========================================" << std::endl;
     cost_gradient_checking();
+
+    std::cout << "primal_dual_profile =========================================" << std::endl;
+    primal_dual_profile();
 
     return 0;
 }

@@ -7,6 +7,7 @@
 #include "types.h"
 #include "residuals.h"
 #include "least_square_problem.h"
+#include "visualizer.h"
 
 
 class RocketLandingSolver
@@ -179,6 +180,9 @@ protected:
         NormalEqution normal_equ(num_variables);
         normal_equ.lhs = At_times_W * equ.jacobi;
         normal_equ.rhs = - At_times_W * equ.current_residaul;
+
+        if(false) PythonmatplotVisualizer().spy_matrix(normal_equ.lhs);
+
         return normal_equ;
     }
 

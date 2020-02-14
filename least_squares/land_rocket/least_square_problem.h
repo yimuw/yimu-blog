@@ -229,6 +229,10 @@ struct Config
         weight_start << 1e4, 1e3, 1e3, 1e3, 1e3, 1e4, 1e4, 1e4;
         weight_end   << 1e4, 1e3, 1e3, 1e3, 1e3, 1e4, 1e4, 1e4;
     }
+
+    // "sparse", "structural"
+    std::string solve_type = "structural";
+
     uint32_t iterations = 20;
 
     double update_step_size = 0.5;
