@@ -100,11 +100,17 @@ To run the reader2, run
 
 The reader2 process reads the images, does the Canny edge detection and displays the edge images.
 
+### More readers
+
+You can run multiple reader1 or reader2 together.
+
 ## 4. Licence
 
 BSD license
 
-Optional but appreciated: If you benefit from the work, you can ONLY ask author leetcode **easy** questions.
+Optional but appreciated: 
+
+leetcode-easy license: If you benefit from the work, you can ONLY ask author leetcode **easy** questions.
 
 
 

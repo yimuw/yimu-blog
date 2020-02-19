@@ -171,10 +171,15 @@ struct MutipleReaderQueue {
             }
 
             m_ptr = &q_shared_->messages_[read_idx % QUEUE_LEN];
+            
+            // Using a semaphore to track how many process is reading the current message.
+            // "signal" a reader is here
+            m_ptr->smf_.increase();
 
             // Check if someone is writing to this cell
             // This only happen if the queue warp around.
             if (!m_ptr->writer_lock_.try_lock()) {
+                m_ptr->smf_.decrease();
                 std::cout << "try_read|someone is writing" << std::endl;
                 std::cout << "try_read|m.test_num :" << m_ptr->data.check_sum << std::endl;
                 return false;
@@ -185,10 +190,6 @@ struct MutipleReaderQueue {
 
             ++read_idx;
         }
-
-        // Using a semaphore to track how many process is reading the current message.
-        // If smf_ > 0, writer shouldn't write anything to it (only when the queue is full).
-        m_ptr->smf_.increase();
 
         d = m_ptr->data;
 
