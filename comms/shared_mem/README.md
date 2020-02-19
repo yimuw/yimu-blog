@@ -20,7 +20,7 @@ Basically, if I want to send a object to another process, I just need to copy th
 
 However, the share memory is subjected to race condition. So I need to design a way to synchronize the readers and the writers.
 
-Check this article for the design of the system: https://wang-yimu.com/tcp-ip-net-video-player/
+Check this article for the design of the system: https://wang-yimu.com/a-tutorial-on-shared-memory-inter-process-communication/
 
 ## 1. Build
 
