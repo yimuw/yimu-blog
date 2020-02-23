@@ -90,7 +90,7 @@ class LinearSystemLyapunov:
         # Q.value = np.identity(num_var)
 
         # sufficient condition
-        Epsilon = 1e-4
+        Epsilon = 1e-7
 
         constraints = [Q >> Epsilon * np.identity(num_var_z)]
         constraints += [slack_V_dot << Epsilon * np.identity(num_var_w)]
@@ -103,17 +103,17 @@ class LinearSystemLyapunov:
         constraints += [0 == slack_V_dot[5,3]]
         constraints += [0 == slack_V_dot[0,2]]
 
-        constraints += [-0.5*q8 == slack_V_dot[4,3] / 2.]
-        constraints += [-1.0*q9 == slack_V_dot[4,4] / 2.]
-        constraints += [-1.0*q10 == slack_V_dot[5,4] / 2.]
-        constraints += [-0.5*q1 - 0.5*q8 == slack_V_dot[3,0] / 2.]
-        constraints += [-0.5*q3 == slack_V_dot[0,0] / 2.]
-        constraints += [-1.0*q2 - 1.0*q4 == slack_V_dot[3,1] / 2.]
-        constraints += [-0.5*q6 == slack_V_dot[4,1] / 2.]
-        constraints += [-0.5*q1 - 0.5*q6 == slack_V_dot[1,0] / 2.]
-        constraints += [-1.0*q5 - 1.0*q7 == slack_V_dot[3,2] / 2.]
-        constraints += [-1.0*q2 == slack_V_dot[1,1] / 2.]
-        constraints += [-1.0*q5 == slack_V_dot[2,1] / 2.]
+        constraints += [-0.5*q8 == slack_V_dot[4,3] * 2.]
+        constraints += [-1.0*q9 == slack_V_dot[4,4] * 2.]
+        constraints += [-1.0*q10 == slack_V_dot[5,4] * 2.]
+        constraints += [-0.5*q1 - 0.5*q8 == slack_V_dot[3,0] * 2.]
+        constraints += [-0.5*q3 == slack_V_dot[0,0] * 2.]
+        constraints += [-1.0*q2 - 1.0*q4 == slack_V_dot[3,1] * 2.]
+        constraints += [-0.5*q6 == slack_V_dot[4,1] * 2.]
+        constraints += [-0.5*q1 - 0.5*q6 == slack_V_dot[1,0] * 2.]
+        constraints += [-1.0*q5 - 1.0*q7 == slack_V_dot[3,2] * 2.]
+        constraints += [-1.0*q2 == slack_V_dot[1,1] * 2.]
+        constraints += [-1.0*q5 == slack_V_dot[2,1] * 2.]
 
         prob = cp.Problem(cp.Minimize(1),
                         constraints)
