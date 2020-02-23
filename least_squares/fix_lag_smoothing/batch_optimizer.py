@@ -1,4 +1,4 @@
-import scipy.linalg as linalg 
+import scipy.linalg as linalg
 import numpy as np
 import profiler
 import fix_lag_types as t
@@ -32,29 +32,32 @@ class BatchOptimization:
         residual_index = 0
         # Add prior to first state. Not a good design.
         pm = t.PriorMeasurement(self.states[0], self.states[0].variables)
-        jacobi[residual_index:residual_index + pm.residual_size(), 0:0 + pm.variable_size()] = pm.jacobi()
-        residual[residual_index:residual_index + pm.residual_size()] = pm.residual()
+        jacobi[residual_index:residual_index +
+               pm.residual_size(), 0:0 + pm.variable_size()] = pm.jacobi()
+        residual[residual_index:residual_index +
+                 pm.residual_size()] = pm.residual()
         residual_index += pm.residual_size()
 
-        for distance_bwteen in self.distances:
+        for distance_between in self.distances:
 
-            state1_idx = distance_bwteen.state1_index
+            state1_idx = distance_between.state1_index
             state1_var_idx = 2 * state1_idx
             state1 = self.states[state1_idx]
 
-            state2_idx = distance_bwteen.state2_index
+            state2_idx = distance_between.state2_index
             state2_var_idx = 2 * state2_idx
             state2 = self.states[state2_idx]
 
-            distance = distance_bwteen.distance
+            distance = distance_between.distance
 
             dm = t.DistanceMeasurement(state1, state2, distance)
 
-            jacobi[residual_index:residual_index + dm.residual_size(), \
+            jacobi[residual_index:residual_index + dm.residual_size(),
                    state1_var_idx:state1_var_idx + dm.variable_size()] = dm.jacobi_wrt_state1()
-            jacobi[residual_index:residual_index + dm.residual_size(), \
+            jacobi[residual_index:residual_index + dm.residual_size(),
                    state2_var_idx:state2_var_idx + dm.variable_size()] = dm.jacobi_wrt_state2()
-            residual[residual_index:residual_index + dm.residual_size()] = dm.residual()
+            residual[residual_index:residual_index +
+                     dm.residual_size()] = dm.residual()
             residual_index += dm.residual_size()
 
         assert(residual_index == self.num_states * 2)

@@ -1,11 +1,11 @@
-import scipy.linalg as linalg 
+import scipy.linalg as linalg
 import numpy as np
 import profiler
 import fix_lag_types as t
 import copy
 
 
-# lag = 1. 
+# lag = 1.
 # Similar to Kalman filter without noise
 class FixLagSmoother:
     def __init__(self, prior):
@@ -13,7 +13,7 @@ class FixLagSmoother:
         # Because I didn't specify weight, so weights are indentity
         self.state_hessian = np.identity(2)
         # Should be J * W * prior, but J = W = I(2)
-        self.state_b = prior.variables.copy().reshape([2,1])
+        self.state_b = prior.variables.copy().reshape([2, 1])
 
         self.all_states = [self.state]
 
@@ -31,8 +31,10 @@ class FixLagSmoother:
         lhs[0:2, 0:2] += self.state_hessian
         rhs[0:2] += self.state_b
 
-        assert(distance_measurement.state1_index + 1 == distance_measurement.state2_index)
-        dm = t.DistanceMeasurement(t.State(self.state.copy()), t.State(self.state.copy()), distance_measurement.distance)
+        assert(distance_measurement.state1_index +
+               1 == distance_measurement.state2_index)
+        dm = t.DistanceMeasurement(t.State(self.state.copy()), t.State(
+            self.state.copy()), distance_measurement.distance)
         jacobi_wrt_s1 = dm.jacobi_wrt_state1()
         jacobi_wrt_s2 = dm.jacobi_wrt_state2()
         jacobi_dm = np.hstack([jacobi_wrt_s1, jacobi_wrt_s2])
@@ -52,9 +54,9 @@ class FixLagSmoother:
     def optimize_for_new_measurement_gaussian_impl(self, distance_measurement):
         lhs, rhs = self.construct_linear_system(distance_measurement)
         # one step for linear system
-        lhs_LU = linalg.lu_factor(lhs) 
+        lhs_LU = linalg.lu_factor(lhs)
         x = linalg.lu_solve(lhs_LU, -rhs)
-        
+
         self.state = x[2:4].reshape([2])
         self.all_states.append(self.state)
 
@@ -79,7 +81,7 @@ class FixLagSmoother:
 
         x_test = np.linalg.solve(self.state_hessian, -self.state_b)
         np.testing.assert_array_almost_equal(x_test.reshape([2]), self.state)
-    
+
     @profiler.time_it
     def optimize_for_new_measurement_schur_impl(self, distance_measurement):
         """
