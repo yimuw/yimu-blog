@@ -22,6 +22,7 @@ public:
         NormalEqution normal_equ(residual.total_variable_size());
         residual_function_to_normal_equation(residual, normal_equ);
         apply_regularization_to_hessian(residual, normal_equ);
+        if(false) PythonmatplotVisualizer().spy_matrix(normal_equ.lhs);
         return solve_normal_eqution(normal_equ);
     }
 

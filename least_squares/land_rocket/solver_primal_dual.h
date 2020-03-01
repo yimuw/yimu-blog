@@ -181,7 +181,7 @@ protected:
         augmented_normal_equ.rhs = construct_primal_dual_problem_rhs(
             cost_gradient, dual_variables, constrains, k_relax_complementary_slackness);
 
-        // PythonmatplotVisualizer().spy_matrix(augmented_normal_equ.lhs);
+        if(false) PythonmatplotVisualizer().spy_matrix(augmented_normal_equ.lhs);
     }
 
         // Solve for KKT: (Stationarity, Complementary slackness)
