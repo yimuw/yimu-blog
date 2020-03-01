@@ -4,6 +4,8 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "soft_matting.h"
+
 class Dehaze
 {
 public:
@@ -19,8 +21,10 @@ public:
     {
         const cv::Mat dark_channel = find_dark_channel(haze_im, 5);
         const cv::Vec3f atmospheric_light = compute_atmospheric_light(dark_channel, haze_im);
-        cv::Mat t = compute_t(haze_im, atmospheric_light);
-        recover_J(haze_im, t, atmospheric_light);
+        const cv::Mat t = compute_t(haze_im, atmospheric_light);
+        SoftMatting sm(haze_im, t);
+        const cv::Mat t_sm = sm.run();
+        recover_J(haze_im, t_sm, atmospheric_light);
     }
 
     cv::Mat recover_J(const cv::Mat &haze_im_in, const cv::Mat &t_in, const cv::Vec3f &atmospheric_light)
@@ -44,8 +48,11 @@ public:
             }
         }
 
-        cv::imshow("J", J);
-        cv::waitKey();
+        if(true)
+        {
+            cv::imshow("J", J);
+            cv::waitKey();
+        }
 
         return J;
     }
@@ -63,8 +70,13 @@ public:
 
         constexpr float OMAGE = 0.95;
         const cv::Mat t = 1 - OMAGE * find_dark_channel(normalized, 3);
-        cv::imshow("t map", t);
-        cv::waitKey();
+
+        if(false)
+        {
+            cv::imshow("t map", t);
+            cv::waitKey();
+        }
+        
         return t;
     }
 
