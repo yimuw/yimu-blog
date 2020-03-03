@@ -19,15 +19,12 @@ add_executable(rocket_landing
 target_include_directories(rocket_landing PRIVATE
                            ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(rocket_landing 
-                      ${PYTHON_LIBRARIES}
-                      cholmod)
-
+                      ${PYTHON_LIBRARIES})
 
 add_executable(tests
                tests.cpp)
 target_link_libraries(tests 
-                      ${PYTHON_LIBRARIES}
-                      cholmod)
+                      ${PYTHON_LIBRARIES})
 target_include_directories(tests PRIVATE
                            ${PYTHON_INCLUDE_DIRS})
 

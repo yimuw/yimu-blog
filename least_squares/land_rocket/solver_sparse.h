@@ -4,12 +4,14 @@
 
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Sparse>
+#ifdef CHOLMOD_SUPPORT
 #include <eigen3/Eigen/CholmodSupport>
+#endif
 
 #include "types.h"
 #include "residuals.h"
-#include "solver_update_ata_in_place.h"
 #include "utils.h"
+#include "solver_update_ata_in_place.h"
 
 
 // A solver for rocket landing problem
