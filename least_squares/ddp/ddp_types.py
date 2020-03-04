@@ -7,12 +7,12 @@ class Dynamic:
     def jacobi_wrt_state(self, state, controls):
         return np.array([
             [1, 0],
-            [0, 1.],
+            [0, 2.],
         ])
 
     def jacobi_wrt_controls(self, state, controls):
         return np.array([
-            [1, 0],
+            [2, 0],
             [0, 1.],
         ])
 
@@ -20,7 +20,7 @@ class Dynamic:
         x, y = state
         ux, uy = controls
 
-        return np.array([x + ux, y + uy])
+        return np.array([x + 2 * ux, 2 * y + uy])
 
 
 class TargetCost:
