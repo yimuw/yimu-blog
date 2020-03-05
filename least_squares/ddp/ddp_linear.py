@@ -5,6 +5,7 @@ import ddp_types
 
 Dynamic = ddp_types.LinearDynamic
 
+
 class DPPstate:
     def __init__(self, v_quadratic_weight, v_quadratic_mean):
         self.v_quadratic_mean = v_quadratic_mean.copy()
@@ -159,7 +160,8 @@ class DDP:
         print('new_controls:', new_controls)
         print('new_states:', new_states)
 
-        final_state_end_cost = ddp_types.TargetCost(new_states[-1], target_state)
+        final_state_end_cost = ddp_types.TargetCost(
+            new_states[-1], target_state)
         print('final_state_end_cost:', final_state_end_cost.cost())
 
         self.check_dynamic(num_controls, new_states, new_controls)

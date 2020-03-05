@@ -20,8 +20,9 @@ class LinearDynamic:
         x, y = state
         ux, uy = controls
 
-        return np.array([x + 2 * ux, 
+        return np.array([x + 2 * ux,
                          y + uy])
+
 
 class NonlinearDynamic:
     # TODO: change the API
@@ -42,7 +43,7 @@ class NonlinearDynamic:
         x, y = state
         ux, uy = controls
 
-        return np.array([x + ux * ux, 
+        return np.array([x + ux * ux,
                          y + uy * ux])
 
 
