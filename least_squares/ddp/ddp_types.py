@@ -2,12 +2,12 @@ import scipy.linalg as linalg
 import numpy as np
 
 
-class Dynamic:
+class LinearDynamic:
     # TODO: change the API
     def jacobi_wrt_state(self, state, controls):
         return np.array([
             [1, 0],
-            [0, 2.],
+            [0, 1.],
         ])
 
     def jacobi_wrt_controls(self, state, controls):
@@ -20,7 +20,30 @@ class Dynamic:
         x, y = state
         ux, uy = controls
 
-        return np.array([x + 2 * ux, 2 * y + uy])
+        return np.array([x + 2 * ux, 
+                         y + uy])
+
+class NonlinearDynamic:
+    # TODO: change the API
+    def jacobi_wrt_state(self, state, controls):
+        return np.array([
+            [1, 0],
+            [0, 1.],
+        ])
+
+    def jacobi_wrt_controls(self, state, controls):
+        ux, uy = controls
+        return np.array([
+            [2 * ux, 0],
+            [uy, ux],
+        ])
+
+    def f_function(self, state, controls):
+        x, y = state
+        ux, uy = controls
+
+        return np.array([x + ux * ux, 
+                         y + uy * ux])
 
 
 class TargetCost:

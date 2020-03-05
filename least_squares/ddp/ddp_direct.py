@@ -4,6 +4,7 @@ from numpy.linalg import inv
 import matplotlib.pyplot as plt
 import ddp_types
 
+Dynamic = ddp_types.NonlinearDynamic
 
 # cost (u1, u2, u3) = k||u1||^2 + k||u2||^2 + k||u3||^3 + ||x4 - target||^2
 #   subject to: x_i+1 = A_i * x_i + B_i * u_i
@@ -20,7 +21,7 @@ class direct_DDP:
         state = initial_state.copy()
         forward_pass_states = [state]
         for i in range(num_controls):
-            next_state = ddp_types.Dynamic().f_function(
+            next_state = Dynamic().f_function(
                 state, controls[i])
             forward_pass_states.append(next_state)
             state = next_state
@@ -28,16 +29,18 @@ class direct_DDP:
 
     def almost_ddp(self, num_controls, initial_state, init_controls, target_state):
         jacobian, residual = self.using_equality_constraints_for_target_residual(num_controls, initial_state, init_controls, target_state)
-        print(jacobian, residual)
 
         lhs = jacobian.T @ jacobian
         rhs = - jacobian.T @ residual
 
         lhs, rhs = self.add_controls_cost(lhs, rhs, num_controls, init_controls)
 
-        controls_result = np.linalg.solve(lhs, rhs)
-        controls_result = controls_result.reshape(num_controls, 2)
-        print('control_result,', controls_result)
+        controls_delta = np.linalg.solve(lhs, rhs)
+        controls_delta = controls_delta.reshape(num_controls, 2)
+        print('controls_delta,', controls_delta)
+
+        STEP_SIZE = 1.
+        controls_result = [init_controls[i] + STEP_SIZE * controls_delta[i] for i in range(num_controls)]
 
         return controls_result
 
@@ -66,16 +69,15 @@ class direct_DDP:
         # B_{n-1} * u_{n-1}
         state_idx = num_controls - 1
         var_idx = SIZE_OF_CONTROL * state_idx
-        B_last = ddp_types.Dynamic().jacobi_wrt_controls(states[-2], init_controls[-1])
+        B_last = Dynamic().jacobi_wrt_controls(states[-2], init_controls[-1])
         jacobian[:, var_idx:] += B_last
 
         # (prob_{j=i+1}^{n-1} A_j) * B_i * u_i
         for state_idx in range(num_controls-2, -1, -1):
-            print(state_idx)
             var_idx = SIZE_OF_CONTROL * state_idx
-            A_i = ddp_types.Dynamic().jacobi_wrt_state(states[state_idx], init_controls[state_idx])
+            A_i = Dynamic().jacobi_wrt_state(states[state_idx], init_controls[state_idx])
             mul_A = mul_A @ A_i
-            B_i = ddp_types.Dynamic().jacobi_wrt_controls(states[state_idx], init_controls[state_idx])
+            B_i = Dynamic().jacobi_wrt_controls(states[state_idx], init_controls[state_idx])
             jacobian[:, var_idx:var_idx+SIZE_OF_CONTROL] += mul_A @ B_i
 
         # check DDP note
@@ -83,8 +85,7 @@ class direct_DDP:
         # r = g(0,0,0) - t + dgdu * u
         # g(0,0,0) = (\prod A_i) * x_0
         last_state = states[-1]
-        A_0 = ddp_types.Dynamic().jacobi_wrt_state(states[0], init_controls[0])
-        residual = (mul_A @ A_0 @ initial_state - target_state).reshape([2,1])
+        residual = (last_state - target_state).reshape([2,1])
         
         return jacobian, residual
 
@@ -98,16 +99,18 @@ class direct_DDP:
         
 
     def run(self):
-        num_controls, initial_state, init_controls, target_state = self.initialize()
+        num_controls, initial_state, controls, target_state = self.initialize()
+
+        for iter in range(4):
         
-        controls_result = self.almost_ddp(num_controls, initial_state, init_controls, target_state)
+            controls = self.almost_ddp(num_controls, initial_state, controls, target_state)
 
-        result_states = self.forward_pass(num_controls, initial_state, controls_result)
+            result_states = self.forward_pass(num_controls, initial_state, controls)
 
-        final_state_end_cost = ddp_types.TargetCost(result_states[-1], target_state)
-        print('final_state_end_cost:', final_state_end_cost.cost())
+            final_state_end_cost = ddp_types.TargetCost(result_states[-1], target_state)
+            print('final_state_end_cost:', final_state_end_cost.cost())
 
-        self.check_dynamic(num_controls, result_states, controls_result)
+        self.check_dynamic(num_controls, result_states, controls)
 
 
 def main():

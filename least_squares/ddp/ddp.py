@@ -3,6 +3,7 @@ import numpy as np
 from numpy.linalg import inv
 import ddp_types
 
+Dynamic = ddp_types.LinearDynamic
 
 class DPPstate:
     def __init__(self, v_quadratic_weight, v_quadratic_mean):
@@ -10,7 +11,7 @@ class DPPstate:
         self.v_quadratic_weight = v_quadratic_weight.copy()
 
     def compute_q(self, state, control):
-        dynamic = ddp_types.Dynamic()
+        dynamic = Dynamic()
         # predict_x = dynamic.f_function(state, control)
         # print('state, control:', state, control)
         # print('predict_x:', predict_x)
@@ -90,7 +91,7 @@ class DDP:
         state = initial_state.copy()
         forward_pass_states = [state]
         for i in range(num_controls):
-            next_state = ddp_types.Dynamic().f_function(
+            next_state = Dynamic().f_function(
                 state, init_controls[i])
             forward_pass_states.append(next_state)
             state = next_state
@@ -119,7 +120,7 @@ class DDP:
             ddp_state = ddp_states[i]
             # the argmin_u Q(u, x)
             control = ddp_state.u_k1 + ddp_state.u_k2 @ state
-            state = ddp_types.Dynamic().f_function(state, control)
+            state = Dynamic().f_function(state, control)
 
             new_controls.append(control)
             new_states.append(state)
