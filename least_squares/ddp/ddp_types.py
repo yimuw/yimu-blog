@@ -1,5 +1,6 @@
 import scipy.linalg as linalg
 import numpy as np
+from math import cos, sin
 
 
 class LinearDynamic:
@@ -35,16 +36,16 @@ class NonlinearDynamic:
     def jacobi_wrt_controls(self, state, controls):
         ux, uy = controls
         return np.array([
-            [2 * ux, 0],
-            [uy, ux],
+            [cos(ux), 0],
+            [0, 1],
         ])
 
     def f_function(self, state, controls):
         x, y = state
         ux, uy = controls
 
-        return np.array([x + ux * ux,
-                         y + uy * ux])
+        return np.array([x + sin(ux),
+                         y + uy])
 
 
 class TargetCost:

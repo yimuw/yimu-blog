@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import ddp_types
 
 Dynamic = ddp_types.NonlinearDynamic
+# Dynamic = ddp_types.LinearDynamic
 
 # cost (u1, u2, u3) = k||u1||^2 + k||u2||^2 + k||u3||^3 + ||x4 - target||^2
 #   subject to: x_i+1 = A_i * x_i + B_i * u_i
@@ -13,10 +14,10 @@ Dynamic = ddp_types.NonlinearDynamic
 
 class direct_DDP:
     def initialize(self):
-        initial_state = np.array([0.5, 2.])
+        initial_state = np.array([0., 0.])
         num_controls = 3
-        init_controls = [np.array([5, 5.]) for i in range(num_controls)]
-        target_state = np.array([10, 10.])
+        init_controls = [np.array([1, 1.]) for i in range(num_controls)]
+        target_state = np.array([2., 2.])
         return num_controls, initial_state, init_controls, target_state
 
     def forward_pass(self, num_controls, initial_state, controls):
@@ -39,9 +40,9 @@ class direct_DDP:
         lhs, rhs = self.add_controls_cost(
             lhs, rhs, num_controls, init_controls)
 
-        print('lhs:', lhs)
-        plt.spy(lhs, precision=0.1, markersize=5)
-        plt.show()
+        if False:
+            plt.spy(lhs, precision=0.1, markersize=5)
+            plt.show()
 
         controls_delta = np.linalg.solve(lhs, rhs)
 
@@ -113,7 +114,7 @@ class direct_DDP:
     def run(self):
         num_controls, initial_state, controls, target_state = self.initialize()
 
-        for iter in range(4):
+        for iter in range(10):
 
             controls = self.almost_ddp(
                 num_controls, initial_state, controls, target_state)
@@ -124,6 +125,10 @@ class direct_DDP:
             final_state_end_cost = ddp_types.TargetCost(
                 result_states[-1], target_state)
             print('final_state_end_cost:', final_state_end_cost.cost())
+        
+        print('----------------------------------')
+        print('final controls:', controls)
+        print('final states:', result_states)
 
         self.check_dynamic(num_controls, result_states, controls)
 

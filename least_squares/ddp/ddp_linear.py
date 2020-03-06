@@ -31,12 +31,14 @@ class DPPstate:
         # assume l(x, u) = 0.5 * k * u.T @ u
         k = 1e-6
         q_hessian_l_term = np.diag([0, 0, k, k])
-        ux, uy = control
-        q_grad_l_term = np.array([0, 0, k * ux, k * uy])
+        # q_grad_l_term = np.array([0, 0, 0, 0])
 
         # Q_n(x,u) = l_n(x, u) + V_n+1(f(x,u))
         self.q_hessian = q_hessian_v_term + q_hessian_l_term
-        self.q_grad = -(q_grad_v_term + q_grad_l_term)
+        self.q_grad = -(q_grad_v_term )
+
+        print("self.q_hessian:", self.q_hessian)
+        print("self.q_grad:", self.q_grad)
 
     def compute(self, state, control):
         self.compute_q(state, control)
@@ -82,10 +84,10 @@ class DPPstate:
 
 class DDP:
     def initialize(self):
-        initial_state = np.array([0.5, 2.])
+        initial_state = np.array([0., 0.])
         num_controls = 3
-        init_controls = [np.array([5, 5.]) for i in range(num_controls)]
-        target_state = np.array([10, 10.])
+        init_controls = [np.array([1, 1.]) for i in range(num_controls)]
+        target_state = np.array([2., 2.])
         return num_controls, initial_state, init_controls, target_state
 
     def forward_pass(self, num_controls, initial_state, init_controls):
@@ -120,6 +122,8 @@ class DDP:
         for i in range(num_controls):
             ddp_state = ddp_states[i]
             # the argmin_u Q(u, x)
+            print('const:', ddp_state.u_k1)
+            print('feedbk:', ddp_state.u_k2)
             control = ddp_state.u_k1 + ddp_state.u_k2 @ state
             state = Dynamic().f_function(state, control)
 
