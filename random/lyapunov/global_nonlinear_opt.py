@@ -2,8 +2,8 @@
 import cvxpy as cp
 import numpy as np
 
-# f(x) = 4 x^2 - 21/10* x^4 + 1/3 x^6 + xy - 4y^2 + 4y^4
-# want: min f(x)
+# f(x, y) = 4 x^2 - 21/10* x^4 + 1/3 x^6 + xy - 4y^2 + 4y^4
+# want: min f(x, y)
 #
 # instead for s, check f(x) - s is S.O.S (> 0). So s is a lower bound for min f(x)
 #
