@@ -54,6 +54,7 @@ class GlobalPolynomialOptimization:
                     print('constrain:', constrain, 'for coef:', x**x_order * y ** y_order)
                     constraint_list_zero.append(constrain)
         print(','.join(constraint_list_zero))
+        return constraint_list_poly, constraint_list_zero
 
     def solve_sos_as_sdp(self):
         num_var_w = 10
@@ -61,7 +62,7 @@ class GlobalPolynomialOptimization:
         gamma = cp.Variable()
 
         # sufficient condition
-        Epsilon = 1e-10
+        Epsilon = 1e-8
 
         constraints = [Q >> Epsilon * np.identity(num_var_w)]
         constraints += [Q[0, 0] == -gamma]
