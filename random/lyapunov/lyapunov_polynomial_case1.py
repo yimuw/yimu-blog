@@ -30,62 +30,38 @@ class LinearSystemLyapunov:
     def polynomial_arrangement(self):
         x, y = sympy.symbols('x y')
 
-        q1, q2, q3, q4, q5, q6, q7, q8, q9, q10 = sympy.symbols(
-            'q1 q2 q3 q4 q5 q6 q7 q8 q9 q10')
+        e0, e1, e2, e3, e4, e5,e6, e7, e8, e9, e10, e11, e12, e13 = sympy.symbols(
+            'e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13')
 
-        Q = sympy.Matrix([
-            [q1, 2 * q2, 2 * q3, 2 * q4],
-            [0, q5, 2 * q6, 2 * q7],
-            [0,  0, q8, 2 * q9],
-            [0,  0,  0, q10],
-        ])
+        V = e0 \
+            + e1 * x + e2 * y \
+            + e3 * x*x + e4 * y*y + e5 * x*y \
+            + e6 * x**3 + e7 * x**2*y + e8 * x*y**2 + e9 * y**3 \
+            + e10 * x**4 + e11 * x**3*y + e11 * x**2*y**2 + e12 * x*y**3 + e13 * y**4
+        V = sympy.Poly(V, x, y)
 
-        A = np.array([[0, -0.5, -0.5, 0],
-                      [-0.5, 0, 0, -0.5],
-                      ])
+        b1 = sympy.Matrix([[1, x, x**2, y, y**2, x*y]]).transpose()
+        Q1 = sympy.MatrixSymbol('Q1', 6, 6)
+        V_SOS = (b1.T @ Q1 @ b1).as_explicit()
+        V_SOS_poly = sympy.Poly(V_SOS[0], x, y)
 
-        z = sympy.Matrix([[x, x*x, y, y*y]]).transpose()
+        constraint_list_Q1 = []
+        for max_order in range(5): 
+            for x_order in range(0, max_order + 1):
+                y_order = max_order - x_order
+                monomial = x**x_order * y ** y_order
 
-        B = sympy.Matrix([
-            [1, 0],
-            [2*x, 0],
-            [0, 1],
-            [0, 2*y]
-        ])
+                v_coeff = V.coeff_monomial(monomial)
+                if not v_coeff is sympy.S.Zero:
+                    coresponding_idx_in_Q1 = V_SOS_poly.coeff_monomial(
+                        monomial)
+                    constrain = '{}=={}'.format(v_coeff, coresponding_idx_in_Q1)
+                    print('constrain:', constrain, ' monomial:', monomial)
 
-        print(z)
-        print(Q)
-        print(B)
+                    constraint_list_Q1.append(constrain)
+        print(','.join(constraint_list_Q1))
 
-        V_dot = z.T @ Q @ B @ A @ z
-        # V_dot_poly = sympy.simplify(V_dot[0])
-        V_dot_poly = sympy.Poly(V_dot[0], x, y)
 
-        w = sympy.Matrix([x, x**2, x**3, y, y**2, y**3])
-        G = sympy.MatrixSymbol('G', 6, 6)
-        V_dot_SOS = (w.T @ G @ w).as_explicit()
-        V_dot_SOS_poly = sympy.Poly(V_dot_SOS[0], x, y)
-        print('V_dot_SOS_poly:', V_dot_SOS_poly)
-
-        MAX_ORDER = 5
-
-        constraint_list = []
-        for x_order in range(0, MAX_ORDER + 1):
-            for y_order in range(0, MAX_ORDER + 1):
-                if y_order > x_order and y_order > 0 and x_order > 0:
-                    continue
-
-                coeff = V_dot_poly.coeff_monomial(x**x_order * y ** y_order)
-                if not coeff is sympy.S.Zero:
-                    coresponding_idx_in_G = V_dot_SOS_poly.coeff_monomial(
-                        x**x_order * y ** y_order)
-                    # print('order: (x= {},y= {})'.format(x_order, y_order), ' coeff:', coeff)
-                    # print('   index in G:', coresponding_idx_in_G)
-                    constrain = '{}=={}'.format(coeff, coresponding_idx_in_G)
-                    print('constrain:', constrain)
-
-                    constraint_list.append(constrain)
-        print(','.join(constraint_list))
 
     def solve_sos_as_sdp(self):
         num_var_z = 4
