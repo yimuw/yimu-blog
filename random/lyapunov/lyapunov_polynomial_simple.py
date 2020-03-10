@@ -112,6 +112,9 @@ class LinearSystemLyapunov:
         print("A solution Q is")
         print(Q.value)
 
+    def draw_dynamic():
+        
+
 
 def main():
     lyapunov = LinearSystemLyapunov()
