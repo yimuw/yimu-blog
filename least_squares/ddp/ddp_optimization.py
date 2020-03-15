@@ -3,6 +3,8 @@ import numpy as np
 from numpy.linalg import inv
 import ddp_types
 
+#Dynamic = ddp_types.LinearDynamic
+ 
 Dynamic = ddp_types.NonlinearDynamic
 
 
@@ -28,10 +30,10 @@ class ControlLaw:
 
 class DDP_optimization_perspective:
     def initialize(self):
-        initial_state = np.array([0., 0.])
-        num_controls = 3
+        initial_state = np.array([2., 2.])
+        num_controls = 20
         init_controls = [np.array([1, 1.]) for i in range(num_controls)]
-        target_state = np.array([2., 2.])
+        target_state = np.array([10., 10.])
         return num_controls, initial_state, init_controls, target_state
 
     def forward_pass(self, num_controls, initial_state, init_controls):
@@ -79,7 +81,7 @@ class DDP_optimization_perspective:
         # |A1 A2| xi = b1
         # |A3 A4| ui   b2
         # note: A2 = A3.T
-        #  
+         
         # 1. elminate ui.
         #  (A1 - A2 * inv(A4) * A3) xi = b1 - A2 * inv(A4) * b2
         # 2. Gievn xi, ui is
@@ -100,6 +102,10 @@ class DDP_optimization_perspective:
 
         # the nonlinear derivation is very very trick! check notes.
         xi_marginal_cost = QuadraticCost(mean=xi_star + xi_current, hessian=rhs_xi)
+
+        # print('mean:', xi_marginal_cost.mean)
+        # print('w:', xi_marginal_cost.hessian)
+
         ui_control_law = ControlLaw(constant = A4_inv @ b2, feedback= - A4_inv @ A3)
         return xi_marginal_cost, ui_control_law
 
@@ -127,7 +133,9 @@ class DDP_optimization_perspective:
             dx = new_cur_state - forward_pass_states[i]
             # the argmin_u Q(u, x)
             du = feedback_law.constant + feedback_law.feedback @ dx
-            control = init_controls[i] + du
+
+            step = 1
+            control = init_controls[i] + step * du
             new_cur_state = Dynamic().f_function(new_cur_state, control)
 
             new_controls.append(control)
@@ -140,7 +148,7 @@ class DDP_optimization_perspective:
         integrated_states = self.forward_pass(num_controls, state0, controls)
         diff = np.stack(integrated_states) - np.stack(states)
         assert np.allclose(np.sum(diff), 0)
-        print('integrated_states - ddp_states: ', diff)
+        # print('integrated_states - ddp_states: ', diff)
 
     def run(self):
         num_controls, initial_state, controls, target_state = self.initialize(
@@ -154,7 +162,7 @@ class DDP_optimization_perspective:
             forward_pass_states = self.forward_pass(num_controls, initial_state,
                                                     controls)
 
-            print('forward_pass_states:', forward_pass_states)
+            # print('forward_pass_states:', forward_pass_states)
 
             final_state = forward_pass_states[-1]
             final_state_init_cost = ddp_types.TargetCost(final_state, target_state)
@@ -169,8 +177,8 @@ class DDP_optimization_perspective:
             print('final_state_end_cost:', final_state_end_cost.cost())
 
         print('----------------------------------')
-        print('new_controls:', controls)
-        print('new_states:', new_states)
+        print('new_controls:\n', controls)
+        print('new_states:\n', new_states)
 
         self.check_dynamic(num_controls, new_states, controls)
 
