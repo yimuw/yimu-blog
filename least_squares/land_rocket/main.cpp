@@ -7,9 +7,18 @@
 int main(int argc, char *argv[])
 {
     // //  dt, x, y, vx, vy, heading, turn_rate, accl
+    // int steps = 100;
+    // RocketState start_state(0.1, -10., 10., 1., 0., M_PI / 10., 0., 0);
+    // RocketState end_state  (0.1, 0., 0., 0., 0., M_PI / 2.,  0., 0.);
+
+    // int steps = 100;
+    // RocketState start_state(0.1, 0., 0., 0., 0., M_PI / 2., 0., 0);
+    // RocketState end_state  (0.1, 0., 10., 0., 0., M_PI / 2.,  0., 0.);
+
     int steps = 100;
-    RocketState start_state(0.1, -10., 10., 1., 0., M_PI / 10., 0., 0);
-    RocketState end_state  (0.1, 0., 0., 0., 0., M_PI / 2.,  0., 0.);
+    RocketState start_state(0.1, 0., 0., 0., 0., M_PI / 2., 0., 0);
+    RocketState end_state  (0.1, 10., 10., 0., 0., M_PI / 4.,  0., 0.);
+
 
     RocketLandingPlanner rocket_landing(start_state, end_state, steps);
     {
@@ -18,8 +27,8 @@ int main(int argc, char *argv[])
     }
     Trajectory result_traj = rocket_landing.get_trajectory();
 
-    PythonmatplotVisualizer visualizer;
-    visualizer.plot_trajectory(result_traj);
+    // PythonmatplotVisualizer visualizer;
+    // visualizer.plot_trajectory(result_traj);
     // visualizer.video(result_traj);
 
     save_trajectory_as_csv("result.csv", result_traj);

@@ -8,3 +8,6 @@
 // Constrained problem
 #include "solver_primal_dual.h"
 #include "solver_primal_dual_structural.h"
+
+// DDP
+#include "solver_ddp.h"

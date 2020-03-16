@@ -230,8 +230,8 @@ struct Config
         weight_end   << 1e4, 1e3, 1e3, 1e3, 1e3, 1e4, 1e4, 1e4;
     }
 
-    // "sparse", "structural"
-    std::string solve_type = "structural";
+    // "sparse", "structural", "ddp_unconstrain"
+    std::string solve_type = "ddp_unconstrain";
 
     uint32_t iterations = 20;
 

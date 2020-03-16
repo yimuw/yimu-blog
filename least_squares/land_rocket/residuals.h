@@ -3,7 +3,7 @@
 #include "types.h"
 
 
-constexpr double GRAVITY = 1.;
+constexpr double GRAVITY = 0.;
 
 struct RocketMotionModel
 {
@@ -24,7 +24,7 @@ struct RocketMotionModel
         return next_state;
     }
 
-    MatrixXd jocobian_wrt_state(const RocketState &state_in) const
+    MatrixXd jacobian_wrt_state(const RocketState &state_in) const
     {
         using S = RocketState;
         const int residual_size = RocketState::STATE_SIZE;
@@ -64,7 +64,7 @@ struct RocketMotionModel
     {
         constexpr double EPSILON = 1e-1;
         Vector8d delta = EPSILON * Vector8d::Ones();
-        MatrixXd jacobi = jocobian_wrt_state(state);
+        MatrixXd jacobi = jacobian_wrt_state(state);
 
         RocketState state_pred;
         state_pred.variables = state.variables + delta;
@@ -126,7 +126,7 @@ struct MotionResidual : public Residual
 
         MatrixXd jacobi = MatrixXd::Zero(residual_size, variable_size);
 
-        const MatrixXd jacobi_wrt_s1 = RocketMotionModel().jocobian_wrt_state(state1);
+        const MatrixXd jacobi_wrt_s1 = RocketMotionModel().jacobian_wrt_state(state1);
         const MatrixXd jacobi_wrt_s2 = - MatrixXd::Identity(residual_size, residual_size);
 
         jacobi.block(0,0,residual_size, residual_size) = jacobi_wrt_s1;

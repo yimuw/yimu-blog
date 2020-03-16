@@ -7,6 +7,7 @@
 using MatrixXd = Eigen::MatrixXd;
 using VectorXd = Eigen::VectorXd;
 using Vector2d = Eigen::Vector2d;
+using Vector6d = Eigen::Matrix<double, 6, 1>;
 using Vector8d = Eigen::Matrix<double, 8, 1>;
 using Matrix8d = Eigen::Matrix<double, 8, 8>;
 using TimeStamp = double;
@@ -46,15 +47,53 @@ struct RocketState
     {
     }
 
-    int variable_size() const
+    static int variable_size()
     {
         return STATE_SIZE;
+    }
+
+    static int lcn_state_size()
+    {
+        // i_dt,
+        // i_position_x,
+        // i_position_y,
+        // i_velocity_x,
+        // i_velocity_y,
+        // i_heading,
+        return 6;
+    }
+
+    static int control_state_size()
+    {
+        // i_turning_rate,
+        // i_acceleration,
+        return 2;
     }
 
     // TODO: const version
     double& delta_time()
     {
         return variables[i_dt];
+    }
+
+    Eigen::Map<Vector6d> lcn_state()
+    {
+        return Eigen::Map<Vector6d>(variables.data());
+    }
+
+    Eigen::Map<Vector2d> cntl_state()
+    {
+        return Eigen::Map<Vector2d>(variables.data() + 6);
+    }
+
+    Vector6d lcn_state() const 
+    {
+        return variables.block<6,1>(0, 0);
+    }
+
+    Vector2d cntl_state() const
+    {
+        return variables.block<2,1>(6, 0);
     }
 
     Eigen::Map<Vector2d> position()

@@ -3,7 +3,7 @@
 #include "solver_primal_dual.h"
 
 
-// Block Diagonal
+// Block (Tri)Diagonal
 // e.g:
 // | A1 A2          |
 // | B1 B2 B3       |
