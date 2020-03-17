@@ -136,7 +136,7 @@ private:
             RocketState next_full_state = motion_model.motion(current_full_state);
             ddp_states.states.at(i + 1) = next_full_state.lcn_state();
 
-            std::cout << "forward iter: " << i << std::endl;
+            std::cout << "idx forward iter: " << i << std::endl;
             std::cout << "control: " << ddp_states.controls.at(i).transpose() << std::endl;
             std::cout << "state: " << ddp_states.states.at(i).transpose() << std::endl;
             std::cout << "next state: " << ddp_states.states.at(i + 1).transpose() << std::endl;
@@ -258,21 +258,31 @@ private:
 
         // DDP is HARD to converge!
         double step = 0.5;
-        for (; current_best_cost_ < shooting_cost && step > 1e-4; step *= 0.5) {
+        // for (; current_best_cost_ < shooting_cost && step > 1e-4; step *= 0.5) {
             for (int i = 0; i < ddp_states.num_states - 1; ++i) {
                 const FeedbackLaw& feedback = ddp_states.feedbacks.at(i);
                 Vector6d delta_state = new_states.at(i) - ddp_states.states.at(i);
+                if(i == 0) assert(delta_state.sum() == 0);
+
                 Vector2d delta_control = feedback.apply(delta_state);
+
+                std::cout << "=== idex: " << i << std::endl;
+                std::cout << "delta_state: " << delta_state.transpose() << std::endl;
+                std::cout << "delta_control: " << delta_control.transpose() << std::endl;
 
                 new_controls.at(i) = ddp_states.controls.at(i) + step * delta_control;
 
                 const RocketState new_rstate = ddp_vars_to_rocket_state(new_states.at(i), new_controls.at(i));
                 new_states.at(i + 1) = motion_model.motion(new_rstate).lcn_state();
+
+                std::cout << "new_control: " << new_controls.at(i).transpose() << std::endl;
+                std::cout << "cur_state:   " << new_states.at(i).transpose() << std::endl;
+                std::cout << "new_state:   " << new_states.at(i + 1).transpose() << std::endl;
             }
 
             QuadraticCost marginal_cost = target_cost(ddp_states.target_state);
             shooting_cost = std::min(shooting_cost, marginal_cost.eval(new_states.back()));
-        }
+        // }
 
         current_best_cost_ = std::min(current_best_cost_, shooting_cost);
 

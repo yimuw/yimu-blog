@@ -30,10 +30,10 @@ class ControlLaw:
 
 class DDP_optimization_perspective:
     def initialize(self):
-        initial_state = np.array([2., 2.])
-        num_controls = 20
-        init_controls = [np.array([1, 1.]) for i in range(num_controls)]
-        target_state = np.array([10., 10.])
+        initial_state = np.array([0.1, 0.1])
+        num_controls = 10
+        init_controls = [np.array([0, 0.]) for i in range(num_controls)]
+        target_state = np.array([2., 2.])
         return num_controls, initial_state, init_controls, target_state
 
     def forward_pass(self, num_controls, initial_state, init_controls):
@@ -134,7 +134,7 @@ class DDP_optimization_perspective:
             # the argmin_u Q(u, x)
             du = feedback_law.constant + feedback_law.feedback @ dx
 
-            step = 1
+            step = 0.5
             control = init_controls[i] + step * du
             new_cur_state = Dynamic().f_function(new_cur_state, control)
 

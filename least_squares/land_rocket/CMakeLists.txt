@@ -28,6 +28,13 @@ target_link_libraries(rocket_landing
 #target_include_directories(tests PRIVATE
 #                           ${PYTHON_INCLUDE_DIRS})
 
+add_executable(test_ddp
+               test_ddp.cpp)
+target_link_libraries(test_ddp 
+                      ${PYTHON_LIBRARIES})
+target_include_directories(test_ddp PRIVATE
+                           ${PYTHON_INCLUDE_DIRS})
+
 
 
 
