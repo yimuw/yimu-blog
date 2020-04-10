@@ -7,27 +7,8 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
-# linear case
-# given a polynomial dynamic system dx = - 0.5 y
-#                                   dy = - 0.5 x
-# Find a quadratic Lyapunov function of z, V(z) = z^T Q z
-# where z is polynomial basis of (x,y). z = [x, x^2, y, y^2]
-#
-# We can express [dx, dy] in the polynomial basis
-#    dxy = A z
-#
-# want: V(z) > 0 => Q >> 0
-#
-#       dot V(x) < 0 =>
-#       dot V(x) = dVdz * dzdx * dxdt
-#    dVdz = 2 z^T Q
-#    dzdx = [1, 2x, 0, 0]  ^T = B
-#           [0, 0 , 1, 2y]
-#    dxdt is the fx
-# 2 z^T Q B A z < 0 => - z^T Q B A z is S.O.S
 
-
-class LinearSystemLyapunov:
+class LyapunovSOS:
     def __init__(self):
         # Warning: you need to copy constaints!
         x, y = sympy.symbols('x y')
@@ -53,11 +34,9 @@ class LinearSystemLyapunov:
 
         V = (self.b1.T @ Q @ self.b1).as_explicit()
         V_poly = sympy.Poly(V[0], x, y)
-        print('V_poly:', V_poly)
 
         V_dot = (- 2 * self.b1.T @ Q @ B @ self.f).as_explicit()
         V_dot_poly = sympy.Poly(V_dot[0], x, y)
-        print('V_dot_poly:', V_dot_poly)
 
         b2 = sympy.Matrix(
             [[x, y, x**2, x*y, y**2, x**3, x**2*y, x*y**2, y**3]]).transpose()
@@ -156,17 +135,13 @@ class LinearSystemLyapunov:
         ax = fig.gca(projection='3d')
         surf = ax.plot_surface(X, Y, V, cmap=cm.coolwarm,
                                linewidth=0, antialiased=False)
-        plt.title('Lyapunov function for engin')
+        plt.title('Lyapunov function for engine')
         plt.show()
 
         # sparse
         X2 = np.arange(-5, 5, 0.5)
         Y2 = np.arange(-5, 5, 0.5)
         X2, Y2 = np.meshgrid(X2, Y2)
-        # self.f = sympy.Matrix([
-        #     [-y - 3/2*x**2 - 1/2*x**3],
-        #     [3*x - y],
-        # ])
         DX = -Y2 - 3/2 * (X2 * X2) - 1/2 * (X2 * X2 * X2)
         DY = 3*X2 - Y2
 
@@ -174,13 +149,13 @@ class LinearSystemLyapunov:
         plt.contour(X, Y, V, colors='r', levels=[
                     1e-7, 5e-7, 1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4])
         plt.axis('equal')
-        plt.title('Lyapunov function for engin\n level-sets and dynamic-fields')
+        plt.title('Lyapunov function for engine\n level-sets and dynamic-fields')
 
         plt.show()
 
 
 def main():
-    lyapunov = LinearSystemLyapunov()
+    lyapunov = LyapunovSOS()
     lyapunov.polynomial_arrangement()
     lyapunov.solve_sos_as_sdp()
 
