@@ -8,7 +8,7 @@ import numpy as np
 #
 # L = p(x) - l(x)g(x)
 # l(x) := 1^T Q 1, sum of squares of 1
-def solve_simple_constraint_sos():
+def solve_simple_constraint_sos_1():
     num_var = 1
    
     Q = cp.Variable((num_var, num_var), symmetric=True)
@@ -36,10 +36,46 @@ def solve_simple_constraint_sos():
     print("A solution Q is")
     print(Q.value)
 
+# verify p(x) >= 0 on g(x) > 0
+# p(x) = (x)^2 - 0.5
+# g(x) = 1 - x^2
+#
+# L = p(x) - l(x)g(x)
+# l(x) := 1^T Q 1, sum of squares of 1
+def solve_simple_constraint_sos_2():
+    num_var = 1
+   
+    Q = cp.Variable((num_var, num_var), symmetric=True)
+
+    slack = cp.Variable((2, 2), symmetric=True)
+    # Q.value = np.identity(num_var)
+
+    # sufficient condition
+    Epsilon = 1e-4 * np.identity(num_var)
+
+    constraints = [Q >> Epsilon]
+    constraints += [slack >> Epsilon]
+
+    constraints += [-Q - 0.5 == slack[0,0]]
+    constraints += [0 == slack[1,0]]
+    constraints += [1+Q == slack[1,1]]
+
+    prob = cp.Problem(cp.Minimize(1),
+                    constraints)
+    prob.solve(verbose = False)
+
+    # Print result.
+    print("status:", prob.status)
+    print("The optimal value is", prob.value)
+    print("A solution Q is")
+    print(Q.value)
 
 def main():
-    solve_simple_constraint_sos()
+    print('# problem 1')
+    solve_simple_constraint_sos_1()
 
+    print('# problem 2')
+    solve_simple_constraint_sos_2()
 
 
 if __name__ == "__main__":
