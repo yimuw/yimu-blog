@@ -11,18 +11,20 @@ def SO2_expm(theta):
     ])
 
 def SO2_log(R):
-    return np.arccos(R[0, 0])
+    return np.arctan2(R[1, 0], R[0, 0])
 
 def vee(l1):
     assert(l1.size == 2)
     a, b = l1
-    return np.array([-b, a])
+    return np.array([b, -a])
 
 
 class ManipulatorOptimization:
     def __init__(self, target):
-        self.R1 = SO2_expm(0.01)
-        self.R2 = SO2_expm(0.01)
+        self.R1_init = SO2_expm(0.01)
+        self.R2_init = SO2_expm(0.01)
+        self.R1 = self.R1_init
+        self.R2 = self.R2_init
         self.l1 = np.array([1., 0])
         self.l2 = np.array([2., 0])
 
@@ -36,15 +38,15 @@ class ManipulatorOptimization:
 
     def end_effector_position(self, R1, R2):
         p1_position = R1 @ self.l1
-        p2_position = p1_position + R1 @ R2 @ self.l2
+        p2_position = p1_position + R2 @ R1 @ self.l2
         return p2_position
 
     def end_effector_position_jacobi_wrt_theta(self):
         jacobi = np.zeros([2, 2])
         # dr / d w1
-        jacobi[:, 0] = self.R1 @ vee(self.l1) + self.R1 @ vee(self.R2 @ self.l2)
+        jacobi[:, 0] =  - self.R1 @ vee(self.l1) - self.R2 @ self.R1 @ vee(self.l2)
         # dr / d w2
-        jacobi[:, 1] = self.R1 @ self.R2 @ vee(self.l2)
+        jacobi[:, 1] =  - self.R2 @ vee(self.R1 @ self.l2)
         return jacobi
 
     def gradient_checking(self):
@@ -67,8 +69,8 @@ class ManipulatorOptimization:
         self.R2 = self.R2 @ SO2_expm(w2)
 
     def optimize(self):
-        for iters in range(10):
-            self.gradient_checking()
+        for iters in range(20):
+            # self.gradient_checking()
             jacobi = self.end_effector_position_jacobi_wrt_theta()
             b = self.residual(self.R1, self.R2)
 
@@ -78,18 +80,42 @@ class ManipulatorOptimization:
 
             cost = b.T @ b
             print('cost: ', cost)
-            # print('delta_local_params: ', delta_local_params)
-            # print('theta:', self.get_theta())
-            if cost < 1e-4:
+            if cost < 1e-8:
                 print('converged at iteration: ', iters)
                 break
 
+    def interp_and_show_video(self):
+        steps = 100
+        dt = 0.02
+
+        # basically so2
+        R1_speed = SO2_log(self.R1_init.T @ self.R1)
+        R2_speed = SO2_log(self.R2_init.T @ self.R2)
+
+        for k in np.linspace(0, 1, 100):
+            R1_k = self.R1_init @ SO2_expm(k * R1_speed)
+            R2_k = self.R2_init @ SO2_expm(k * R2_speed)
+
+            p1_position = R1_k @ self.l1
+            p2_position = p1_position + R2_k @ R1_k @ self.l2
+
+            p1x, p1y = p1_position
+            p2x, p2y = p2_position
+            plt.cla()
+            plt.plot([0, p1x, p2x], [0, p1y, p2y])
+            plt.xlim([-3, 3])
+            plt.ylim([-3, 3])
+
+            plt.pause(.001)
+
+        plt.show()
 
 
 def main():
-    end_effector_target = np.array([0, 1])
+    end_effector_target = np.array([0, 1.2])
     manipulator_on_the_manifold = ManipulatorOptimization(end_effector_target)
     manipulator_on_the_manifold.optimize()
+    manipulator_on_the_manifold.interp_and_show_video()
     
 
 
