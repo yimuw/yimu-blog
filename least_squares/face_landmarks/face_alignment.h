@@ -10,21 +10,22 @@ class FaceAlignment {
 public:
     void estimation_transformation(const cv::Mat& im1, const cv::Mat& im2)
     {
-        // want to estimate: cur_im_ - warped(last_im_)
-        last_im_ = preprocess(im1);
-        cur_im_ = preprocess(im2);
+        // want to estimate: des_im_ - warped(last_im_)
+        src_im_ = preprocess(im1);
+        des_im_ = preprocess(im2);
 
-        rows_ = cur_im_.rows;
-        cols_ = cur_im_.cols;
+        rows_ = des_im_.rows;
+        cols_ = des_im_.cols;
 
-        last_im_grad_x_ = compute_derivatives(last_im_, "x");
-        last_im_grad_y_ = compute_derivatives(last_im_, "y");
+        src_im_grad_x_ = compute_derivatives(src_im_, "x");
+        src_im_grad_y_ = compute_derivatives(src_im_, "y");
 
         cv::Mat homo_trans = least_squares();
     }
 
 private:
-    cv::Mat preprocess(const cv::Mat &im) {
+    cv::Mat preprocess(const cv::Mat& im)
+    {
         cv::Mat result;
 
         cv::cvtColor(im, result, CV_BGR2GRAY);
@@ -81,7 +82,8 @@ private:
         float d = trans.at<float>(4, 0);
         float f = trans.at<float>(5, 0);
 
-        cv::Point2f p_trans;;
+        cv::Point2f p_trans;
+        ;
         p_trans.x = a * p.x + b * p.y + e;
         p_trans.y = c * p.x + d * p.y + f;
         return p_trans;
@@ -95,36 +97,36 @@ private:
         constexpr size_t MAX_ITERS = 100;
         for (size_t iters = 0; iters < MAX_ITERS; ++iters) {
             const cv::Mat J = compute_jacobian(homo_trans,
-                last_im_grad_x_, last_im_grad_y_);
+                src_im_grad_x_, src_im_grad_y_);
 
             const cv::Mat b = compute_b(homo_trans,
-                last_im_, cur_im_);
+                src_im_, des_im_);
 
             cv::Mat delta = solve_normal_equation(J, b);
             homo_trans = homo_trans + delta;
-            
+
             std::cout << "delta trans: " << delta << std::endl;
             std::cout << "norm:" << cv::norm(delta) << std::endl;
             std::cout << "homo_trans: " << homo_trans << std::endl;
 
-            if(cv::norm(delta) < 1e-6) {
+            if (cv::norm(delta) < 1e-6) {
                 std::cout << "converged" << std::endl;
                 break;
             }
 
+            cv::imshow("prev", des_im_);
             // cv::Mat transfrom = homo_trans.reshape(2, 3);
-            cv::Mat transfrom = (cv::Mat_<float>(2, 3) 
-                << homo_trans.at<float>(0,0),
-                    homo_trans.at<float>(1,0),
-                    homo_trans.at<float>(2,0),
-                    homo_trans.at<float>(3,0),
-                    homo_trans.at<float>(4,0),
-                    homo_trans.at<float>(5,0));
-            
+            cv::Mat transfrom = (cv::Mat_<float>(2, 3)
+                    << homo_trans.at<float>(0, 0),
+                homo_trans.at<float>(1, 0),
+                homo_trans.at<float>(2, 0),
+                homo_trans.at<float>(3, 0),
+                homo_trans.at<float>(4, 0),
+                homo_trans.at<float>(5, 0));
+
             cv::Mat warped;
-            cv::warpAffine( last_im_, warped, transfrom, last_im_.size(), cv::WARP_INVERSE_MAP);  
+            cv::warpAffine(src_im_, warped, transfrom, src_im_.size(), cv::WARP_INVERSE_MAP);
             cv::imshow("warped", warped);
-            cv::imshow("prev", cur_im_);
             cv::waitKey(1);
         }
 
@@ -148,9 +150,9 @@ private:
                     const cv::Mat jacobian_pixel_wrt_xy = (cv::Mat_<float>(1, 2)
                             << bilinear_interp(last_im_grad_x_, p_trans),
                         bilinear_interp(last_im_grad_y_, p_trans));
-                    const cv::Mat jacobian_wrt_homo = jacobian_xy_wrt_homo({x, y});
+                    const cv::Mat jacobian_wrt_homo = jacobian_xy_wrt_homo({ x, y });
                     const cv::Mat jacobian_im_wrt_homo = jacobian_pixel_wrt_xy * jacobian_wrt_homo;
-                    
+
                     // PRINT_NAME_VAR(jacobian_pixel_wrt_xy);
                     // PRINT_NAME_VAR(jacobian_wrt_homo);
 
@@ -165,7 +167,7 @@ private:
         }
         // std::cout << "j: " << jacobian << std::endl;
         // std::cout << "count: " << count << std::endl;
-        
+
         jacobian = jacobian / sqrt(count);
         return jacobian;
     }
@@ -179,9 +181,9 @@ private:
         const float x = xy.x;
         const float y = xy.y;
         cv::Mat jacobian_wrt_homo = (cv::Mat_<float>(2, 6)
-                << 
-                x, y, 1, 0, 0, 0,
-                0, 0, 0, x, y, 1);
+                << x,
+            y, 1, 0, 0, 0,
+            0, 0, 0, x, y, 1);
         return jacobian_wrt_homo;
     }
 
@@ -267,8 +269,8 @@ private:
 
     int rows_{ 0 };
     int cols_{ 0 };
-    cv::Mat cur_im_;
-    cv::Mat last_im_;
-    cv::Mat last_im_grad_x_;
-    cv::Mat last_im_grad_y_;
+    cv::Mat des_im_;
+    cv::Mat src_im_;
+    cv::Mat src_im_grad_x_;
+    cv::Mat src_im_grad_y_;
 };
