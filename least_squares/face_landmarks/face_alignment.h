@@ -6,14 +6,26 @@
 
 #define PRINT_NAME_VAR(var) std::cout << #var << " :" << var << std::endl;
 
+struct Landmark {
+    int x {0};
+    int y {0};
+};
+
 class FaceAlignment {
 public:
-    void estimation_transformation(const cv::Mat& im1, const cv::Mat& im2)
+    void estimation_transformation(const cv::Mat& im1, const cv::Mat& im2, std::vector<Landmark>& landmarks)
     {
-        // want to estimate: des_im_ - warped(last_im_)
+        landmarks_ = landmarks;
+
+        // Want to estimate: des_im_ - warped(last_im_)
         src_im_ = preprocess(im1);
         des_im_ = preprocess(im2);
 
+        // cv::Mat temp;
+        // cv::Size im_size(500, 550);
+        // cv::resize(im2, temp, im_size);
+        // imwrite( "des_im.jpg", temp );
+    
         rows_ = des_im_.rows;
         cols_ = des_im_.cols;
 
@@ -30,11 +42,15 @@ private:
 
         cv::cvtColor(im, result, CV_BGR2GRAY);
         result.convertTo(result, CV_32F, 1 / 255.0);
-        cv::Size im_size(300, 300);
+        // TODO: how to hind my double chin?
+        cv::Size im_size(500, 550);
         cv::resize(result, result, im_size);
+
+        //cv::Laplacian( result, result, CV_32F, 3);
+
         constexpr bool APPLY_SPLINE = true;
         if (APPLY_SPLINE) {
-            cv::GaussianBlur(result, result, cv::Size(3, 3), 0, 0, cv::BORDER_DEFAULT);
+            cv::GaussianBlur(result, result, cv::Size(5, 5), 0, 0, cv::BORDER_DEFAULT);
         }
         return result;
     }
@@ -75,18 +91,23 @@ private:
         assert(trans.rows == 6);
         assert(trans.cols == 1);
 
-        float a = trans.at<float>(0, 0);
-        float b = trans.at<float>(1, 0);
-        float e = trans.at<float>(2, 0);
-        float c = trans.at<float>(3, 0);
-        float d = trans.at<float>(4, 0);
-        float f = trans.at<float>(5, 0);
+        const float a = trans.at<float>(0, 0);
+        const float b = trans.at<float>(1, 0);
+        const float e = trans.at<float>(2, 0);
+        const float c = trans.at<float>(3, 0);
+        const float d = trans.at<float>(4, 0);
+        const float f = trans.at<float>(5, 0);
 
         cv::Point2f p_trans;
-        ;
         p_trans.x = a * p.x + b * p.y + e;
         p_trans.y = c * p.x + d * p.y + f;
         return p_trans;
+    }
+
+    void draw_landmarks(cv::Mat &im) {
+        for(const auto &l : landmarks_) {
+            cv::circle(im, {l.x, l.y}, 5, {0,255,0}, 1);
+        }
     }
 
     cv::Mat least_squares()
@@ -105,34 +126,51 @@ private:
             cv::Mat delta = solve_normal_equation(J, b);
             homo_trans = homo_trans + delta;
 
-            std::cout << "delta trans: " << delta << std::endl;
-            std::cout << "norm:" << cv::norm(delta) << std::endl;
-            std::cout << "homo_trans: " << homo_trans << std::endl;
-
             if (cv::norm(delta) < 1e-6) {
                 std::cout << "converged" << std::endl;
                 break;
             }
 
-            cv::imshow("prev", des_im_);
-            // cv::Mat transfrom = homo_trans.reshape(2, 3);
-            cv::Mat transfrom = (cv::Mat_<float>(2, 3)
-                    << homo_trans.at<float>(0, 0),
-                homo_trans.at<float>(1, 0),
-                homo_trans.at<float>(2, 0),
-                homo_trans.at<float>(3, 0),
-                homo_trans.at<float>(4, 0),
-                homo_trans.at<float>(5, 0));
+            if (true) {
+                std::cout << "delta trans: " << delta << std::endl;
+                std::cout << "norm:" << cv::norm(delta) << std::endl;
+                std::cout << "homo_trans: " << homo_trans << std::endl;
 
-            cv::Mat warped;
-            cv::warpAffine(src_im_, warped, transfrom, src_im_.size(), cv::WARP_INVERSE_MAP);
-            cv::imshow("warped", warped);
-            cv::waitKey(1);
+                // TODO: why doesn't work?
+                // cv::Mat transfrom = homo_trans.reshape(2, 3);
+                cv::Mat transfrom = (cv::Mat_<float>(2, 3)
+                        << homo_trans.at<float>(0, 0),
+                    homo_trans.at<float>(1, 0),
+                    homo_trans.at<float>(2, 0),
+                    homo_trans.at<float>(3, 0),
+                    homo_trans.at<float>(4, 0),
+                    homo_trans.at<float>(5, 0));
+
+                cv::Mat warped;
+                cv::warpAffine(src_im_, warped, transfrom, src_im_.size(), cv::WARP_INVERSE_MAP);
+                draw_landmarks(warped);
+                draw_landmarks(des_im_);
+                cv::Mat concat;
+                cv::hconcat(des_im_, warped, concat);
+                cv::imshow("current result", concat);
+                cv::waitKey(1);
+            }
         }
 
         std::cout << "final trans: " << homo_trans << std::endl;
 
         return homo_trans;
+    }
+
+    inline bool point_in_roi(const cv::Point2f &p) {
+        const cv::Point2f center(src_im_.cols / 2, src_im_.rows / 2);
+        const float roi_r = 0.95 * std::min(center.x, center.y);
+
+        if(cv::norm(center - p) < roi_r) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     cv::Mat compute_jacobian(
@@ -146,7 +184,7 @@ private:
         for (float y = 0; y < rows_; ++y) {
             for (float x = 0; x < cols_; ++x) {
                 const cv::Point2f p_trans = apply_homo(homo_trans, { x, y });
-                if (inbound(p_trans)) {
+                if (inbound(p_trans) and point_in_roi(p_trans)) {
                     const cv::Mat jacobian_pixel_wrt_xy = (cv::Mat_<float>(1, 2)
                             << bilinear_interp(last_im_grad_x_, p_trans),
                         bilinear_interp(last_im_grad_y_, p_trans));
@@ -199,7 +237,7 @@ private:
         for (float y = 0; y < rows_; ++y) {
             for (float x = 0; x < cols_; ++x) {
                 cv::Point2f p_trans = apply_homo(homo_trans, { x, y });
-                if (inbound(p_trans)) {
+                if (inbound(p_trans) and point_in_roi(p_trans)) {
                     b.at<float>(count, 0) = bilinear_interp(cur_im, { x, y })
                         - bilinear_interp(last_im, p_trans);
 
@@ -269,6 +307,9 @@ private:
 
     int rows_{ 0 };
     int cols_{ 0 };
+
+    std::vector<Landmark> landmarks_;
+
     cv::Mat des_im_;
     cv::Mat src_im_;
     cv::Mat src_im_grad_x_;
