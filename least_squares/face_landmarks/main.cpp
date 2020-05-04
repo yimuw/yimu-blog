@@ -17,7 +17,7 @@ void gt_test(cv::Mat& image1, cv::Mat& image2, std::vector<Landmark>&)
 void read_test(cv::Mat& image1, cv::Mat& image2, std::vector<Landmark>& landmarks)
 {
     image2 = cv::imread("/home/yimu/Desktop/blog/yimu-blog/least_squares/face_landmarks/yimu-base.jpg");
-    image1 = cv::imread("/home/yimu/Desktop/blog/yimu-blog/least_squares/face_landmarks/yimu2.jpg");
+    image1 = cv::imread("/home/yimu/Desktop/blog/yimu-blog/least_squares/face_landmarks/yimu1.jpg");
     assert(image1.rows > 0 && "fail to read image");
     assert(image2.rows > 0 && "fail to read image");
 
