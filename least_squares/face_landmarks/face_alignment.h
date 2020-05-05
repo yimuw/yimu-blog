@@ -27,15 +27,23 @@ public:
         src_im_grad_x_ = compute_derivatives(src_im_, "x");
         src_im_grad_y_ = compute_derivatives(src_im_, "y");
 
+        warped_vis_ = cv::Mat(rows_, cols_, CV_32F, 0.);
+
         // grid is hardcoded for simplicity.
         // assuming the size of im is: cv::Size im_size(500, 550);
-        cv::Mat init_trans = (cv::Mat_<float>(6, 1) << 1, 0, 0, 0, 1, 0);
-        cv::Mat affine_trans_global = least_squares(init_trans, 50, cols_ - 100, 50, rows_ - 100);
+        cv::Mat identity_trans = (cv::Mat_<float>(6, 1) << 1, 0, 0, 0, 1, 0);
+        cv::Mat affine_trans_global = least_squares(identity_trans, 50, cols_ - 100, 50, rows_ - 100);
 
         const int x_start = 100;
         const int y_start = 150;
         const int gridy_len = 350;
         const int gridx_len = 150;
+
+        cv::Mat compare_im = des_im_orig_.clone();
+        draw_landmark_in_rect(compare_im, identity_trans,
+                    0, cols_,
+                    0, rows_);
+        cv::imwrite("compare" + std::to_string(vis_count_++) + ".png", compare_im);
 
         cv::Mat result = src_im_orig_.clone();
         // take middle roi
@@ -47,17 +55,21 @@ public:
                     x_start + x_grid * gridx_len, gridx_len,
                     y_start + y_grid * gridy_len, gridy_len);
 
-                draw_landmark_in_src(result, affine_trans_patch,
+                draw_landmark_in_rect(result, affine_trans_patch,
                     x_start + x_grid * gridx_len, gridx_len,
                     y_start + y_grid * gridy_len, gridy_len);
 
                 cv::imshow("result", result);
+                cv::imwrite("path" + std::to_string(vis_count_++) + ".png", result);
                 cv::waitKey(1000);
             }
         }
 
+        
+
         cv::imshow("result", result);
         cv::waitKey(0);
+        cv::imwrite("path" + std::to_string(vis_count_++) + ".png", result);
     }
 
 private:
@@ -76,7 +88,7 @@ private:
         }
     }
 
-    void draw_landmark_in_src(
+    void draw_landmark_in_rect(
         cv::Mat& im,
         const cv::Mat& affine_trans,
         const int x_start,
@@ -91,7 +103,7 @@ private:
                     y_start, y_len)) {
                 cv::Point2f pt_in_src = apply_affine(affine_trans, p);
                 // Out of bound?
-                cv::circle(im, pt_in_src, 5, { 0, 255, 0 }, 2);
+                cv::circle(im, pt_in_src, 5, { 0, 255, 0 }, 3);
             }
         }
     }
@@ -148,7 +160,7 @@ private:
     void draw_landmarks(cv::Mat& im)
     {
         for (const auto& l : landmarks_) {
-            cv::circle(im, { l.x, l.y }, 5, { 0, 255, 0 }, 1);
+            cv::circle(im, { l.x, l.y }, 5, { 0, 255, 0 }, 2);
         }
     }
 
@@ -174,9 +186,11 @@ private:
             affine_trans = affine_trans + delta;
 
             if (true) {
-                std::cout << "delta trans: " << delta << std::endl;
-                std::cout << "norm:" << cv::norm(delta) << std::endl;
-                std::cout << "affine_trans: " << affine_trans << std::endl;
+                if (false) {
+                    std::cout << "delta trans: " << delta << std::endl;
+                    std::cout << "norm:" << cv::norm(delta) << std::endl;
+                    std::cout << "affine_trans: " << affine_trans << std::endl;
+                }
 
                 // TODO: why doesn't work?
                 // cv::Mat transfrom = affine_trans.reshape(2, 3);
@@ -188,14 +202,14 @@ private:
                     affine_trans.at<float>(4, 0),
                     affine_trans.at<float>(5, 0));
 
-                cv::Mat warped(rows_, cols_, CV_32F);
                 // cv::warpAffine(src_im_, warped, transfrom, src_im_.size(), cv::WARP_INVERSE_MAP);
-                warp(src_im_, warped, affine_trans, x_start, x_len, y_start, y_len);
-                draw_landmarks(warped);
+                warp(src_im_, warped_vis_, affine_trans, x_start, x_len, y_start, y_len);
+                draw_landmarks(warped_vis_);
                 draw_landmarks(des_im_);
                 cv::Mat concat;
-                cv::hconcat(des_im_, warped, concat);
+                cv::hconcat(des_im_, warped_vis_, concat);
                 cv::imshow("current result", concat);
+                cv::imwrite("concat" + std::to_string(vis_count_++) + ".png", 255. * concat.clone());
                 if (cv::norm(delta) < 1e-1) {
                     cv::waitKey(1000);
                 } else {
@@ -239,9 +253,6 @@ private:
                     const cv::Mat jacobian_wrt_affine = jacobian_xy_wrt_affine({ x, y });
                     const cv::Mat jacobian_im_wrt_affine = jacobian_pixel_wrt_xy * jacobian_wrt_affine;
 
-                    // PRINT_NAME_VAR(jacobian_pixel_wrt_xy);
-                    // PRINT_NAME_VAR(jacobian_wrt_affine);
-
                     assert(jacobian_im_wrt_affine.cols == 6);
                     assert(jacobian_im_wrt_affine.rows == 1);
                     for (int k = 0; k < 6; ++k) {
@@ -251,8 +262,6 @@ private:
                 }
             }
         }
-        // std::cout << "j: " << jacobian << std::endl;
-        // std::cout << "count: " << count << std::endl;
 
         jacobian = jacobian / sqrt(count);
         return jacobian;
@@ -298,8 +307,7 @@ private:
                 }
             }
         }
-        // std::cout << "b: " << b << std::endl;
-        // std::cout << "count:" << count << std::endl;
+
         b = b / sqrt(count);
         return b;
     }
@@ -370,4 +378,8 @@ private:
 
     cv::Mat des_im_orig_;
     cv::Mat src_im_orig_;
+
+    // a little bit hack for visualization
+    cv::Mat warped_vis_;
+    int vis_count_{ 0 };
 };
