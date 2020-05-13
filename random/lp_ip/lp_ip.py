@@ -7,7 +7,15 @@ from collections import defaultdict
 
 class AssociationGraph:
     def __init__(self):
-        self.layer_sizes = np.array([21, 22, 23, 20, 21, 20, 19])
+        self.layer_sizes = None
+        # random experiment
+        RANDOM_SIZE = True
+        if RANDOM_SIZE:
+            size = random.randint(2, 10)
+            self.layer_sizes = [random.randint(2, 30) for i in range(size)]
+        else:
+            self.layer_sizes = np.array([3, 4, 3, 4])
+
         self.len_layers = len(self.layer_sizes)
 
         # association reward
@@ -17,11 +25,11 @@ class AssociationGraph:
         for i in range(self.len_layers - 1):
             # noise for association reward
             w = np.random.uniform(
-                0, 0.3, (self.layer_sizes[i], self.layer_sizes[i+1]))
+                0.0, 0.1, (self.layer_sizes[i], self.layer_sizes[i+1]))
             # Associated nodes.
             # Without loss of generality, put associated cost on diag.
             min_len = min(self.layer_sizes[i], self.layer_sizes[i+1])
-            diag_w = np.random.uniform(0.7, 1., min_len)
+            diag_w = np.random.uniform(0.5, 1., min_len)
             # TODO: function? diag?
             for j in range(min_len):
                 w[j][j] = diag_w[j]
@@ -29,8 +37,8 @@ class AssociationGraph:
             self.weights.append(w)
             self.weights_linear_map.append(w.size)
 
-        self.start_reward = 0.2
-        self.end_reward = 0.2
+        self.start_reward = np.random.uniform(0.2, 0.2)
+        self.end_reward = np.random.uniform(0.2, 0.2)
 
         self.weights_linear_map = np.cumsum(self.weights_linear_map)
 
@@ -68,7 +76,8 @@ class AssociationGraph:
         # num of constraint, 2 for each graph node
         A = np.zeros((2 * sum(self.layer_sizes), num_vars))
 
-        print('nums_vars: ', num_vars, ' nums graph constraint:', A.shape[0])
+        print('num layers:', self.len_layers, ' num nodes:', sum(self.layer_sizes), 'num edges: ',
+              num_vars, ' num graph constraint:', A.shape[0])
 
         constraint_idx = 0
 
@@ -128,26 +137,29 @@ class AssociationGraph:
         assert(constraint_idx == A.shape[0])
         b = np.ones(constraint_idx)
 
+        if False:
+            print('A:\n', A)
+
+        # TODO: check if every row of A is not perpendicular to c?
         return A, b, c, num_vars
 
     def lp(self):
-        print('constructing lp...')
         A, b, c, num_vars = self.constraint_lp()
-        print('construction end')
 
         # Define and solve the CVXPY problem.
         x = cp.Variable(num_vars)
         prob = cp.Problem(cp.Minimize(- c.T@x),
                           [A @ x <= b, x >= 0, x <= 1])
-        prob.solve()
+        prob.solve(solver=cp.OSQP, verbose=False, eps_abs=1e-8, eps_rel=1e-8)
 
         # Print result.
-        print("\nThe optimal value is", prob.value)
-        print("A solution x is")
-        print(x.value)
+        if False:
+            print("\nThe optimal value is", prob.value)
+            print("A solution x is")
+            print(x.value)
 
         # TODO: what's the precision for cvxpy?
-        epsilon = 1e-6
+        epsilon = 1e-7
         integral_mask = (np.abs(x.value-0) <
                          epsilon) | (np.abs(x.value-1) < epsilon)
         num_integral = sum(integral_mask)
@@ -160,7 +172,7 @@ class AssociationGraph:
             print("Linear relaxation != Integer Programming")
             relaxation_success = False
 
-        if False:
+        if True and relaxation_success is False:
             for i in range(len(integral_mask)):
                 if not integral_mask[i]:
                     print('i:', i, '  v:', x.value[i])
@@ -207,7 +219,7 @@ class AssociationGraph:
         # just need to consider current node
         for end_node in range(self.layer_sizes[-1]):
             node = 'layer:{} node:{}'.format(self.len_layers - 1, end_node)
-            path = []
+            path = ['end']
             while(node is not None):
                 path.append(node)
                 # [(node, weight), .....]
@@ -223,17 +235,25 @@ class AssociationGraph:
 
 
 def relaxation_experiment():
-    total_try = 1000
+    total_try = 10000
+    
     success_count = 0
+    solver_failure = 0
 
     for i in range(total_try):
-        association = AssociationGraph()
-        x, relaxation_success = association.lp()
+        try:
+            print('iter:', i)
+            association = AssociationGraph()
+            x, relaxation_success = association.lp()
 
-        if relaxation_success:
-            success_count += 1
+            if relaxation_success:
+                success_count += 1
+        except:
+            solver_failure += 1
 
-    print('total try:', total_try, 'relaxation success count:', success_count)
+    print('total try:', total_try, 
+          'relaxation success count:', success_count, 
+          'solver failures:', solver_failure)
 
 
 def run_single():
@@ -245,4 +265,5 @@ def run_single():
 
 
 if __name__ == "__main__":
-    run_single()
+    # run_single()
+    relaxation_experiment()
