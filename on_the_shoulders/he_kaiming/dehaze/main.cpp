@@ -5,16 +5,18 @@
 
 #include "dehaze.h"
 
-
 int main(int argc, char* argv[])
 {
-    cv::Mat haze_im = cv::imread("/home/yimu/Desktop/blog/yimu-blog/on_the_shoulders/he_kaiming/dehaze/tiananmen1.png");
-    haze_im.convertTo(haze_im, CV_32FC3, 1/255.0);
+    if (argc != 2) {
+        std::cout << "usage: dehaze <path in image>" << std::endl;
+    }
+    std::string im_path = argv[1];
+    std::cout << "reading image from: " << im_path << std::endl;
+
+    cv::Mat haze_im = cv::imread(im_path);
+    haze_im.convertTo(haze_im, CV_32FC3, 1 / 255.0);
 
     Dehaze dehaze;
-
-    // cv::imshow("m_pad", haze_im);
-    // cv::waitKey(0);
 
     dehaze.dehaze(haze_im);
 
