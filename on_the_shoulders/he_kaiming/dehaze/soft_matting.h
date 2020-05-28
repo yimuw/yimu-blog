@@ -447,6 +447,8 @@ public:
 
         if (true) {
             cv::imshow("filtered", filtered);
+            cv::imwrite("filtered.png", 255 * filtered);
+            cv::imwrite("t_prior_.png", 255 * t_prior_);
         }
 
         return filtered;

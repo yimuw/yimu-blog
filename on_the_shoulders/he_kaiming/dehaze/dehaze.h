@@ -41,10 +41,10 @@ public:
 
         if (true) {
             cv::imshow("dehazed", dehazed);
-
             cv::Mat exposed = exposure_change(dehazed, 1.3);
             cv::imshow("exposed", exposed);
-
+            cv::imwrite("dehazed.png", 255 * dehazed);
+            cv::imwrite("exposed.png", 255 * exposed);
             cv::waitKey();
         }
     }
@@ -86,6 +86,7 @@ public:
 
         if (false) {
             cv::imshow("t map", t);
+            cv::imwrite("t_map.png", t);
             cv::waitKey();
         }
 
@@ -113,8 +114,9 @@ public:
             }
         }
 
-        if (false) {
+        if (true) {
             cv::imshow("dark_chaneel", dark_chaneel);
+            cv::imwrite("dark_channel.png", 255 * dark_chaneel);
             // cv::waitKey(0);
         }
 
@@ -156,7 +158,7 @@ public:
             dark_channel_index_and_intensities.end() - dark_channel_index_and_intensities.size() * 0.0005,
             dark_channel_index_and_intensities.end());
 
-        // show_pixel(haze_im, candidate_from_dark, "candidate_from_dark");
+        show_pixel(haze_im, candidate_from_dark, "candidate_from_dark");
 
         // Not the same as in the paper
         cv::Vec3f mean(0., 0., 0.);
@@ -176,6 +178,7 @@ public:
         }
 
         cv::imshow(info, im_viz);
+        cv::imwrite("im_viz.png", 255 * im_viz);
         cv::waitKey();
     }
 
