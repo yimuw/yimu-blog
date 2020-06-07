@@ -26,17 +26,42 @@ class VarNode(Node):
         self.expression_string = var.name
 
 
-class ExpressionTreeAlgo:
-    def traverse(self, root):
+
+def display_tree(root):
+    def _display_aux(root):
+        # No child.
         if root.node_type == 'VarNode':
-            print('var_id:', root.var.name)
-            return
+            line = root.var.name
+            width = len(line)
+            height = 1
+            middle = width // 2
+            return [line], width, height, middle
 
-        assert root.node_type == 'OpNode'
-        self.traverse(root.left)
-        print('op:', root.op)
-        self.traverse(root.right)
+        # Two children.
+        left, n, p, x = _display_aux(root.left)
+        right, m, q, y = _display_aux(root.right)
+        s = root.op
+        u = len(s)
+        first_line = (x + 1) * ' ' + (n - x - 1) * \
+            '_' + s + y * '_' + (m - y) * ' '
+        second_line = x * ' ' + '/' + \
+            (n - x - 1 + u + y) * ' ' + '\\' + (m - y - 1) * ' '
+        if p < q:
+            left += [n * ' '] * (q - p)
+        elif q < p:
+            right += [m * ' '] * (p - q)
+        zipped_lines = zip(left, right)
+        lines = [first_line, second_line] + \
+            [a + u * ' ' + b for a, b in zipped_lines]
+        return lines, n + m + u, max(p, q) + 2, n + u // 2
+    
+    lines, _, _, _ = _display_aux(root)
+    for line in lines:
+        print(line)
 
+
+
+class ExpressionTreeAlgo:
     def count_num_muls(self, trees):
         dp_map = {}
 
@@ -139,6 +164,7 @@ def test_all_tree():
     muls = list(algo.count_num_muls(trees))
     for t, m in zip(trees, muls):
         print('for tree:', t.expression_string)
+        display_tree(t)
         print('# muls:', m)
 
     min_tree, min_muls = min(zip(trees, muls), key=lambda x: x[1])
@@ -169,7 +195,7 @@ val = (v0@((v1@(v2@(v3@v4)))@v5))
     times = timeit.repeat(setup=SETUP_CODE,
                           stmt=TEST_CODE2,
                           number=10000)
-    print('time for {}\n: {}'.format(TEST_CODE2,min(times)))
+    print('time for {}\n: {}'.format(TEST_CODE2, min(times)))
 
 
 if __name__ == "__main__":
