@@ -27,7 +27,7 @@ class VarNode(Node):
 
 
 
-def display_tree(root):
+def print_tree(root):
     def _display_aux(root):
         # No child.
         if root.node_type == 'VarNode':
@@ -61,38 +61,37 @@ def display_tree(root):
 
 
 
-class ExpressionTreeAlgo:
-    def count_num_muls(self, trees):
-        dp_map = {}
+def count_num_muls(trees):
+    dp_map = {}
 
-        def count_num_muls_internal(root):
-            s = root.expression_string
-            if s in dp_map:
-                count, shape = dp_map[s]
-                # update the shape of mul
-                root.shape = shape
-                return count
+    def count_num_muls_internal(root):
+        s = root.expression_string
+        if s in dp_map:
+            count, shape = dp_map[s]
+            # update the shape of mul
+            root.shape = shape
+            return count
 
-            if root.node_type == 'VarNode':
-                return 0
+        if root.node_type == 'VarNode':
+            return 0
 
-            assert root.node_type == 'OpNode'
-            left_muls = count_num_muls_internal(root.left)
-            right_muls = count_num_muls_internal(root.right)
+        assert root.node_type == 'OpNode'
+        left_muls = count_num_muls_internal(root.left)
+        right_muls = count_num_muls_internal(root.right)
 
-            lr, lc = root.left.shape
-            rr, rc = root.right.shape
-            assert lc == rr, 'matrix dim mismatch'
-            root.shape = (lr, rc)
-            cur_muls = lc * lr * rc
+        lr, lc = root.left.shape
+        rr, rc = root.right.shape
+        assert lc == rr, 'matrix dim mismatch'
+        root.shape = (lr, rc)
+        cur_muls = lc * lr * rc
 
-            total_muls = left_muls + right_muls + cur_muls
-            # need to track the shape of mul
-            dp_map[s] = (total_muls, root.shape)
-            return total_muls
+        total_muls = left_muls + right_muls + cur_muls
+        # need to track the shape of mul
+        dp_map[s] = (total_muls, root.shape)
+        return total_muls
 
-        for t in trees:
-            yield count_num_muls_internal(t)
+    for t in trees:
+        yield count_num_muls_internal(t)
 
 
 class Variable():
@@ -107,12 +106,24 @@ def build_expression_tree_simple(vars):
     '''
     if len(vars) == 1:
         return VarNode(vars[0])
-
-    var_node0 = VarNode(vars[0])
-
     op_node = OpNode('@')
-    op_node.left = var_node0
+    op_node.left = VarNode(vars[0])
     op_node.right = build_expression_tree_simple(vars[1:])
+    op_node.expression_string = \
+        '({}*{})'.format(op_node.left.expression_string,
+                         op_node.right.expression_string)
+    return op_node
+
+def build_expression_tree_mid(vars):
+    '''
+        build a single tree for a list of mats
+    '''
+    if len(vars) == 1:
+        return VarNode(vars[0])
+    op_node = OpNode('@')
+    var_len = len(vars)
+    op_node.left = build_expression_tree_simple(vars[: var_len // 2])
+    op_node.right = build_expression_tree_simple(vars[var_len // 2 :])
     op_node.expression_string = \
         '({}*{})'.format(op_node.left.expression_string,
                          op_node.right.expression_string)
@@ -145,60 +156,91 @@ def build_all_expression_tree(vars):
 
 
 def gen_test_data():
-    v0 = Variable('v0', np.ones([20, 20]))
-    v1 = Variable('v1', np.ones([20, 35]))
-    v2 = Variable('v2', np.ones([35, 100]))
-    v3 = Variable('v3', np.ones([100, 360]))
-    v4 = Variable('v4', np.ones([360, 10]))
-    v5 = Variable('v5', np.ones([10, 10]))
-    vars = [v0, v1, v2, v3, v4, v5]
+    A = Variable('A', np.ones([20, 20]))
+    B = Variable('B', np.ones([20, 35]))
+    C = Variable('C', np.ones([35, 100]))
+    D = Variable('D', np.ones([100, 360]))
+    E = Variable('E', np.ones([360, 10]))
+    F = Variable('F', np.ones([10, 10]))
+    vars = [A, B, C, D, E, F]
     return vars
+
+def test_single_tree():
+    vars = gen_test_data()
+    tree = build_expression_tree_simple(vars)
+    print('for tree:', tree.expression_string)
+    print_tree(tree)
+
+    tree = build_expression_tree_mid(vars)
+    print('for tree:', tree.expression_string)
+    print_tree(tree)
 
 
 def test_all_tree():
     vars = gen_test_data()
 
     trees = build_all_expression_tree(vars)
-    algo = ExpressionTreeAlgo()
 
-    muls = list(algo.count_num_muls(trees))
+    muls = list(count_num_muls(trees))
     for t, m in zip(trees, muls):
         print('for tree:', t.expression_string)
-        display_tree(t)
+        print_tree(t)
         print('# muls:', m)
+        print('')
 
     min_tree, min_muls = min(zip(trees, muls), key=lambda x: x[1])
     print('optimal expression:', min_tree.expression_string)
+    print_tree(min_tree)
     print('optimal # muls:', min_muls)
 
 
 def time_expr():
     print('timming....')
-    SETUP_CODE = ''' 
+    setup_code = ''' 
 from __main__ import gen_test_data
 vars = gen_test_data()
 data = [v.data for v in vars]
-v0, v1, v2, v3, v4, v5 = data
+A, B, C, D, E, F = data
 '''
 
-    TEST_CODE1 = ''' 
-val = v0@v1@v2@v3@v4@v5
+    test_code1 = ''' 
+val = (A@(B@(C@(D@(E@F)))))
     '''
 
-    TEST_CODE2 = ''' 
-val = (v0@((v1@(v2@(v3@v4)))@v5))
+    test_code2 = ''' 
+val = A@B@C@D@E@F
     '''
-    times = timeit.repeat(setup=SETUP_CODE,
-                          stmt=TEST_CODE1,
+
+    test_code3 = '''
+val = (((((A@B)@C)@D)@E)@F)
+    '''
+
+    test_code_opt = ''' 
+val = (A@((B@(C@(D@E)))@F))
+    '''
+    times = timeit.repeat(setup=setup_code,
+                          stmt=test_code1,
                           number=10000)
-    print('time for {}\n: {}'.format(TEST_CODE1, min(times)))
-    times = timeit.repeat(setup=SETUP_CODE,
-                          stmt=TEST_CODE2,
+    print('time for {} is {} ms'.format(test_code1, min(times)))
+    
+    times = timeit.repeat(setup=setup_code,
+                          stmt=test_code2,
                           number=10000)
-    print('time for {}\n: {}'.format(TEST_CODE2, min(times)))
+    print('time for {} is {} ms'.format(test_code2, min(times)))
+
+    times = timeit.repeat(setup=setup_code,
+                          stmt=test_code3,
+                          number=10000)
+    print('time for {} is {} ms'.format(test_code3, min(times)))
+
+    times = timeit.repeat(setup=setup_code,
+                          stmt=test_code_opt,
+                          number=10000)
+    print('time for {} is {} ms'.format(test_code_opt, min(times)))
+
 
 
 if __name__ == "__main__":
     test_all_tree()
-
+ 
     time_expr()
