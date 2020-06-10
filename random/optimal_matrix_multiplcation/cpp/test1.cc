@@ -57,17 +57,17 @@ template<int32_t ROWS, int32_t COLS>
 struct Mat{
     using MatrixType = Matrix<ROWS, COLS>;
 
-    MatrixType mat_;
+    MatrixType *mat_ {nullptr};
 
     Mat() = default;
 
     Mat(MatrixType &m)
-        : mat_(m)
+        : mat_(&m)
     {}
 
     MatrixType eval()
     {
-        return mat_;
+        return *mat_;
     }
 
     static constexpr int32_t cost()
@@ -149,6 +149,7 @@ typename Prod<A, B>::MatrixType eval_expression(Prod<A, B>, void * p[], int &idx
 {
     typename A::MatrixType m1 = eval_expression(A(), p, idx);
     typename B::MatrixType m2 = eval_expression(B(), p, idx);
+    cout << "prod res: " << m1 * m2 << endl;
     return m1 * m2;
 }
 
@@ -215,6 +216,11 @@ int main(int argc, char *argv[])
         auto m2 = Matrix<20, 4>();
         auto m3 = Matrix<4, 8>();
 
+        // TODO: using Ones() cause Mat deduction fail
+        m1 = Matrix<2, 20>::Ones();
+        m2 = Matrix<20, 4>::Ones();
+        m3 = Matrix<4, 8>::Ones();
+
         auto mm1 = Mat(m1);
         auto mm2 = Mat(m2);
         auto mm3 = Mat(m3);
@@ -264,5 +270,6 @@ int main(int argc, char *argv[])
         cout << "p3_res: " << p3_res << std::endl;
 
     }
+
     return 0;
 }
