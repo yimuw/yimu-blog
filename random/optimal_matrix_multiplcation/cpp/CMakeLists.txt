@@ -4,6 +4,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-g -Wall -O2)
 
+include_directories( /usr/include/eigen3 )
+
 project(matrix-mul)
 
 add_executable(test1 

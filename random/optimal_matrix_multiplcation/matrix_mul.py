@@ -28,6 +28,9 @@ class VarNode(Node):
 
 
 def print_tree(root):
+    '''
+        https://stackoverflow.com/questions/34012886/print-binary-tree-level-by-level-in-python
+    '''
     def _display_aux(root):
         # No child.
         if root.node_type == 'VarNode':
