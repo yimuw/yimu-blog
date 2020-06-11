@@ -10,6 +10,7 @@ using namespace std;
 
 template<int32_t COST>
 struct C{
+    using Type = C;
     static constexpr int32_t cost()
     {
         return COST;
@@ -27,7 +28,8 @@ struct Max{
         return ((int32_t)A::cost() > (int32_t)B::cost()) ? (int32_t)A::cost() : (int32_t)B::cost();
     }
 
-    typedef typename std::conditional<(A::cost() > B::cost()),A, B>::type Type;
+    // TODO: ::type::Type is ugly!
+    typedef typename std::conditional<(A::cost() > B::cost()),A, B>::type::Type Type;
 
     static void print_type()
     {
@@ -41,7 +43,7 @@ struct Min{
         return ((int32_t)A::cost() < (int32_t)B::cost()) ? (int32_t)A::cost() : (int32_t)B::cost();
     }
 
-    typedef typename std::conditional<(A::cost() < B::cost()),A, B>::type Type;
+    typedef typename std::conditional<(A::cost() < B::cost()),A, B>::type::Type Type;
 
     static void print_type()
     {
@@ -55,6 +57,8 @@ using Matrix = Eigen::Matrix<double, R, C>;
 
 template<int32_t ROWS, int32_t COLS>
 struct Mat{
+    // Used in struct Max/ struct Min
+    using Type = Mat;
     using MatrixType = Matrix<ROWS, COLS>;
 
     MatrixType *mat_ {nullptr};
@@ -67,6 +71,7 @@ struct Mat{
 
     MatrixType eval()
     {
+        assert(mat_);
         return *mat_;
     }
 
@@ -99,6 +104,8 @@ struct Mat{
 template<typename A, typename B>
 struct Prod
 {
+    // Used in struct Max/ struct Min
+    using Type = Prod;
     using MatrixType = Matrix<A::rows(), B::cols()>;
 
     A a_;
@@ -143,13 +150,20 @@ struct Prod
 };
 
 
+template<typename A, typename B>
+typename Prod<A, B>::MatrixType eval_expression(Prod<A, B> E, void * p[])
+{
+    int idx = 0;
+    return eval_expression(E, p, idx);
+}
 
+// TODO: using a type parameter to dispatch calls is inefficient. 
+//       consider using template specification.
 template<typename A, typename B>
 typename Prod<A, B>::MatrixType eval_expression(Prod<A, B>, void * p[], int &idx)
 {
     typename A::MatrixType m1 = eval_expression(A(), p, idx);
     typename B::MatrixType m2 = eval_expression(B(), p, idx);
-    cout << "prod res: " << m1 * m2 << endl;
     return m1 * m2;
 }
 
@@ -158,6 +172,82 @@ typename M::MatrixType eval_expression(M, void * p[], int &idx)
 {
     M mat = *reinterpret_cast<M*>(p[idx++]);
     return mat.eval();
+}
+
+template<typename EigenM1,typename EigenM2,typename EigenM3>
+auto prod(EigenM1 &m1, EigenM2 &m2, EigenM3 &m3)
+{
+    auto mm1 = Mat(m1);
+    auto mm2 = Mat(m2);
+    auto mm3 = Mat(m3);
+    using M1 = decltype(mm1);
+    using M2 = decltype(mm2);
+    using M3 = decltype(mm3);
+    using OptimalExpression = typename 
+        Max<Prod<M1, Prod<M2, M3>>, Prod<Prod<M1, M2>, M3>>::Type;
+
+    void * p[3] = {&mm1, &mm2, &mm3};
+    OptimalExpression::print_type();
+    return eval_expression(OptimalExpression(), p);
+}
+
+template<typename EigenM1,typename EigenM2,typename EigenM3,typename EigenM4>
+auto prod(EigenM1 &m1, EigenM2 &m2, EigenM3 &m3, EigenM4 &m4)
+{
+    auto mm1 = Mat(m1);
+    auto mm2 = Mat(m2);
+    auto mm3 = Mat(m3);
+    auto mm4 = Mat(m4);
+
+    using M1 = decltype(mm1);
+    using M2 = decltype(mm2);
+    using M3 = decltype(mm3);
+    using M4 = decltype(mm4);
+    using OptimalExpression = typename 
+        Max<Prod<M1,Prod<M2,Prod<M3,M4>>>,
+        Max<Prod<M1,Prod<Prod<M2,M3>,M4>>,
+        Max<Prod<Prod<M1,M2>,Prod<M3,M4>>,
+        Max<Prod<Prod<M1,Prod<M2,M3>>,M4>,
+        Prod<Prod<Prod<M1,M2>,M3>,M4>>>>>::Type;
+
+    void * p[4] = {&mm1, &mm2, &mm3, &mm4};
+    OptimalExpression::print_type();
+    return eval_expression(OptimalExpression(), p);
+}
+
+template<typename EigenM1,typename EigenM2,typename EigenM3,typename EigenM4, typename EigenM5>
+auto prod(EigenM1 &m1, EigenM2 &m2, EigenM3 &m3, EigenM4 &m4, EigenM5 &m5)
+{
+    auto mm1 = Mat(m1);
+    auto mm2 = Mat(m2);
+    auto mm3 = Mat(m3);
+    auto mm4 = Mat(m4);
+    auto mm5 = Mat(m5);
+
+    using M1 = decltype(mm1);
+    using M2 = decltype(mm2);
+    using M3 = decltype(mm3);
+    using M4 = decltype(mm4);
+    using M5 = decltype(mm5);
+    using OptimalExpression = typename
+        Max<Prod<M1,Prod<M2,Prod<M3,Prod<M4,M5>>>>,
+        Max<Prod<M1,Prod<M2,Prod<Prod<M3,M4>,M5>>>,
+        Max<Prod<M1,Prod<Prod<M2,M3>,Prod<M4,M5>>>,
+        Max<Prod<M1,Prod<Prod<M2,Prod<M3,M4>>,M5>>,
+        Max<Prod<M1,Prod<Prod<Prod<M2,M3>,M4>,M5>>,
+        Max<Prod<Prod<M1,M2>,Prod<M3,Prod<M4,M5>>>,
+        Max<Prod<Prod<M1,M2>,Prod<Prod<M3,M4>,M5>>,
+        Max<Prod<Prod<M1,Prod<M2,M3>>,Prod<M4,M5>>,
+        Max<Prod<Prod<Prod<M1,M2>,M3>,Prod<M4,M5>>,
+        Max<Prod<Prod<M1,Prod<M2,Prod<M3,M4>>>,M5>,
+        Max<Prod<Prod<M1,Prod<Prod<M2,M3>,M4>>,M5>,
+        Max<Prod<Prod<Prod<M1,M2>,Prod<M3,M4>>,M5>,
+        Max<Prod<Prod<Prod<M1,Prod<M2,M3>>,M4>,M5>,
+        Prod<Prod<Prod<Prod<M1,M2>,M3>,M4>,M5>>>>>>>>>>>>>>::Type;
+
+    void * p[5] = {&mm1, &mm2, &mm3, &mm4, &mm5};
+    OptimalExpression::print_type();
+    return eval_expression(OptimalExpression(), p);
 }
 
 
@@ -211,65 +301,26 @@ int main(int argc, char *argv[])
         MinP::Type::print_type();
     }
 
-    {
-        auto m1 = Matrix<2, 20>();
-        auto m2 = Matrix<20, 4>();
-        auto m3 = Matrix<4, 8>();
-
-        // TODO: using Ones() cause Mat deduction fail
-        m1 = Matrix<2, 20>::Ones();
-        m2 = Matrix<20, 4>::Ones();
-        m3 = Matrix<4, 8>::Ones();
-
-        auto mm1 = Mat(m1);
-        auto mm2 = Mat(m2);
-        auto mm3 = Mat(m3);
-
-        auto p1 = Prod(mm1, mm2);
-        auto p2 = Prod(p1, mm3);
-
-        auto res = p2.eval();
-        cout << "res.rc:" << res.rows() << "," << res.cols() << endl;
-
-        auto p = Prod(mm1, Prod{mm2, mm3});
-        cout << p.eval() << endl;
-    }
 
     {
-        using M1 = Mat<2,3>;
-        using M2 = Mat<3,4>;
-        using M3 = Mat<4,3>;
+        std::cout << "=========== expr 4 ===========" << std::endl;
 
-        using P1 = Prod<Prod<M1, M2>, M3>;
-        using P2 = Prod<M1, Prod<M2, M3>>;
+        auto m1 = Matrix<5,4>();
+        auto m2 = Matrix<4,4>();
+        auto m3 = Matrix<4,4>();
+        auto m4 = Matrix<4,5>();
+        auto m5 = Matrix<5,10>();
 
-        auto m1 = Matrix<2, 3>();
-        m1 << 1,2,3,4,5,6;
-        auto m2 = Matrix<3, 4>();
-        m2 << 1,2,3,4,5,6,7,8,9,10,11,12;
-        auto m3 = Matrix<4, 3>();
-        m3 << 1,2,3,4,5,6,7,8,9,10,11,12;
+        auto res3 = prod(m1, m2, m3);
+        cout << "res3:" << res3 << std::endl;
 
-        auto mm1 = M1(m1);
-        auto mm2 = M2(m2);
-        auto mm3 = M3(m3);
+        auto res4 = prod(m1, m2, m3, m4);
+        cout << "res4:" << res4 << std::endl;
 
-        void * p[3] = {&mm1, &mm2, &mm3};
-
-        int idx = 0;
-        auto p1_res = eval_expression(P1(), p, idx);
-        cout << "p1_res: " << p1_res << std::endl;
-
-        idx = 0;
-        auto p2_res = eval_expression(P2(), p, idx);
-        cout << "p2_res: " << p2_res << std::endl;
-
-        using MaxP = Max<P1, P2>;
-        idx = 0;
-        auto p3_res = eval_expression(MaxP::Type(), p, idx);
-        cout << "p3_res: " << p3_res << std::endl;
-
+        auto res5 = prod(m1, m2, m3, m4, m5);
+        cout << "res5:" << res5 << std::endl;
     }
+
 
     return 0;
 }
