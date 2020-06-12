@@ -22,14 +22,12 @@ class VarNode(Node):
     def __init__(self, var):
         super().__init__('VarNode')
         self.var = var
-        self.shape = var.data.shape
         self.expression_string = var.name
 
 
 class Variable():
-    def __init__(self, name, data):
+    def __init__(self, name):
         self.name = name
-        self.data = data
 
 
 def print_tree(root):
@@ -93,29 +91,39 @@ def build_all_expression_tree(vars):
 
 
 def gen_test_data():
-    M1 = Variable('M1', np.ones([20, 20]))
-    M2 = Variable('M2', np.ones([20, 35]))
-    M3 = Variable('M3', np.ones([35, 100]))
-    M4 = Variable('M4', np.ones([100, 360]))
-    M5 = Variable('M5', np.ones([100, 360]))
-    vars = [M1, M2, M3, M4, M5]
+    M1 = Variable('M1')
+    M2 = Variable('M2')
+    M3 = Variable('M3')
+    M4 = Variable('M4')
+    M5 = Variable('M5')
+    M6 = Variable('M6')
+    M7 = Variable('M7')
+    vars = [M1, M2, M3, M4, M5, M6, M7]
     return vars
 
-def max_opetation_for_expressions(expressions):
+def min_opetation_for_expressions(expressions):
     if len(expressions) == 1:
         return expressions[0]
 
     e1 = expressions[0]
-    s = 'Max<{},\n{}>'.format(e1, 
-        max_opetation_for_expressions(expressions[1:]))
+    s = 'Min<{},\n{}>'.format(e1, 
+        min_opetation_for_expressions(expressions[1:]))
     return s
 
+def gen_all_expression():
+    vars = gen_test_data()
+
+    print('============ all expressions =============')
+    for size in range(3, len(vars)):
+        trees = build_all_expression_tree(vars[:size])
+        expressions = [t.expression_string for t in trees]
+        print('using MinExpression{} = {};'.format(size, min_opetation_for_expressions(expressions)))
 
 def test_all_tree():
     vars = gen_test_data()
+    vars = vars[:3]
 
     trees = build_all_expression_tree(vars)
-
     for t in trees:
         print('for tree:', t.expression_string)
         print_tree(t)
@@ -124,11 +132,10 @@ def test_all_tree():
     print('All expressions:')
 
     var_size = len(vars)
-    for i, e in enumerate(expressions):
-        print('using E{}{} = {};'.format(var_size, i, e))
-
-    print('using OptimalExpression = {}::Type;'.format(max_opetation_for_expressions(expressions)))
+    print('using MinExpression = {};'.format(min_opetation_for_expressions(expressions)))
 
 if __name__ == "__main__":
     test_all_tree()
+
+    gen_all_expression()
 
