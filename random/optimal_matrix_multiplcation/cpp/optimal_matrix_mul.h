@@ -7,6 +7,7 @@
 
 #include "core.h"
 #include "expressions.h"
+#include "utils.h"
 
 namespace matrix_optimal_product {
 template <typename EigenM1, typename EigenM2, typename EigenM3>
@@ -114,7 +115,7 @@ auto prod(EigenM1& m1, EigenM2& m2, EigenM3& m3, EigenM4& m4, EigenM5& m5, Eigen
         std::cout << std::endl;
         std::cout << "optimal cost:" << OptimalExpression::cost() << std::endl;
     }
-    void* p[5] = { &me1, &me2, &me3, &me4, &me5, &me6 };
+    void* p[6] = { &me1, &me2, &me3, &me4, &me5, &me6 };
     return eval_expression(OptimalExpression(), p);
 }
 }

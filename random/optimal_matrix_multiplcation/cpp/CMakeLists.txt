@@ -8,6 +8,6 @@ include_directories( /usr/include/eigen3 )
 
 project(matrix-mul)
 
-add_executable(test1 
-               test1.cc)
+add_executable(tests 
+               tests.cc)
 

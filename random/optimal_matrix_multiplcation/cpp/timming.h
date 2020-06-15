@@ -8,10 +8,14 @@
 #include <vector>
 
 struct Timing {
-    inline static std::map<std::string, std::vector<double>> name_to_times_;
+    using timing_map = std::map<std::string, std::vector<double>>;
+    using timing_result = std::map<std::string, double>;
 
-    static void print_info()
+    inline static timing_map name_to_times_;
+
+    static std::map<std::string, double> print_info()
     {
+        timing_result result;
         for (auto& p : name_to_times_) {
             double sum = std::accumulate(p.second.begin(), p.second.end(), 0.0);
             double mean = sum / p.second.size();
@@ -19,7 +23,10 @@ struct Timing {
             double sq_sum = std::inner_product(p.second.begin(), p.second.end(), p.second.begin(), 0.0);
             double stdev = std::sqrt(sq_sum / p.second.size() - mean * mean);
             std::cout << p.first << "  mean(ms): " << mean * 1e3 << " stdev(ms):" << stdev * 1e3 << std::endl;
+            
+            result.insert({p.first, mean * 1e3});
         }
+        return result;
     }
 
     Timing(const std::string& name)
