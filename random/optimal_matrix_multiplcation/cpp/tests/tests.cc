@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "optimal_matrix_mul.h"
-#include "timming.h"
+#include "../optimal_matrix_mul.h"
+#include "../timming.h"
 
 using namespace matrix_optimal_product;
 

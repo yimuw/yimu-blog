@@ -13,7 +13,7 @@ struct Min {
         return ((int32_t)A::cost() < (int32_t)B::cost()) ? (int32_t)A::cost() : (int32_t)B::cost();
     }
 
-    typedef typename std::conditional<(A::cost() < B::cost()), A, B>::type::Type Type;
+    using Type = typename std::conditional<(A::cost() < B::cost()), A, B>::type::Type;
 
     static void print_type()
     {
@@ -31,19 +31,10 @@ struct MatExpression {
     using Type = MatExpression;
     using MatrixType = Matrix<ROWS, COLS>;
 
-    MatrixType* mat_{ nullptr };
-
     MatExpression() = default;
 
-    MatExpression(MatrixType& m)
-        : mat_(&m)
+    MatExpression(MatrixType&)
     {
-    }
-
-    MatrixType eval()
-    {
-        assert(mat_);
-        return *mat_;
     }
 
     static constexpr int32_t cost()
@@ -78,20 +69,10 @@ struct ProdExpression {
     using Type = ProdExpression;
     using MatrixType = Matrix<A::rows(), B::cols()>;
 
-    A a_;
-    B b_;
-
     ProdExpression() = default;
 
-    ProdExpression(A a, B b)
-        : a_(a)
-        , b_(b)
+    ProdExpression(A, B)
     {
-    }
-
-    MatrixType eval()
-    {
-        return a_.eval() * b_.eval();
     }
 
     static constexpr int32_t cost()
@@ -144,8 +125,8 @@ typename ProdExpression<A, B>::MatrixType eval_expression(ProdExpression<A, B>, 
 template <typename M>
 typename M::MatrixType eval_expression(M, void* p[], int& idx)
 {
-    M mat = *reinterpret_cast<M*>(p[idx++]);
-    return mat.eval();
+    using EigenMatType = typename M::MatrixType;
+    return *reinterpret_cast<EigenMatType*>(p[idx++]);
 }
 
 }

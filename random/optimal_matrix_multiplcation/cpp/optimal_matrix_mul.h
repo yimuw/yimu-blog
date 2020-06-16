@@ -21,7 +21,7 @@ auto prod(EigenM1& m1, EigenM2& m2, EigenM3& m3, bool verbose = false)
     using M3 = decltype(me3);
     using MinExpression = MinExpression3<M1, M2, M3>;
     using OptimalExpression = typename MinExpression::Type;
-    void* p[3] = { &me1, &me2, &me3 };
+    void* p[3] = { &m1, &m2, &m3 };
 
     if (verbose) {
         print_cost_for_min_expression(MinExpression());
@@ -57,7 +57,7 @@ auto prod(EigenM1& m1, EigenM2& m2, EigenM3& m3, EigenM4& m4, bool verbose = fal
         std::cout << "optimal cost:" << OptimalExpression::cost() << std::endl;
     }
 
-    void* p[4] = { &me1, &me2, &me3, &me4 };
+    void* p[4] = { &m1, &m2, &m3, &m4 };
     return eval_expression(OptimalExpression(), p);
 }
 
@@ -85,7 +85,7 @@ auto prod(EigenM1& m1, EigenM2& m2, EigenM3& m3, EigenM4& m4, EigenM5& m5, bool 
         std::cout << std::endl;
         std::cout << "optimal cost:" << OptimalExpression::cost() << std::endl;
     }
-    void* p[5] = { &me1, &me2, &me3, &me4, &me5 };
+    void* p[5] = { &m1, &m2, &m3, &m4, &m5 };
     return eval_expression(OptimalExpression(), p);
 }
 
@@ -115,7 +115,7 @@ auto prod(EigenM1& m1, EigenM2& m2, EigenM3& m3, EigenM4& m4, EigenM5& m5, Eigen
         std::cout << std::endl;
         std::cout << "optimal cost:" << OptimalExpression::cost() << std::endl;
     }
-    void* p[6] = { &me1, &me2, &me3, &me4, &me5, &me6 };
+    void* p[6] = { &m1, &m2, &m3, &m4, &m5, &m6 };
     return eval_expression(OptimalExpression(), p);
 }
 }

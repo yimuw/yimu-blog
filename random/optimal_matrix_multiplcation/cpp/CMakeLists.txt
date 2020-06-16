@@ -9,5 +9,5 @@ include_directories( /usr/include/eigen3 )
 project(matrix-mul)
 
 add_executable(tests 
-               tests.cc)
+               tests/tests.cc)
 
