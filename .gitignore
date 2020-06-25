@@ -1,5 +1,5 @@
 **/build
 **/__pycache__
-
+/comms/zookeeper_cloud_computing/zookeeper-3.4.12
 .venv
 .vscode
