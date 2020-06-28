@@ -76,7 +76,7 @@ public class WebServer {
     boolean checkHeaderHas(Headers headers, String headerName)
     {
         if (headers.containsKey(headerName)) {
-            System.out.println(headerName + headers.get(headerName).get(0));
+            System.out.println(headerName + ":" + headers.get(headerName).get(0));
             return true;
         } else {
             System.out.println("request doesn't contain " + headerName);
@@ -102,11 +102,13 @@ public class WebServer {
             return;
         }
 
+        System.out.println("============ Handling new computing request =============");
+
         Headers headers = exchange.getRequestHeaders();
 
         if (!(checkHeaderHas(headers, "binName")
-                && checkHeaderHas(headers, "binName")
-                && checkHeaderHas(headers, "binName"))) {
+                && checkHeaderHas(headers, "taskId")
+                && checkHeaderHas(headers, "binArgs"))) {
             return;
         }
 
@@ -121,6 +123,8 @@ public class WebServer {
         } else {
             sendResponse(status.result, exchange, 400);
         }
+
+        System.out.println("============ Done handling request =============");
     }
 
     public static boolean deleteDirectory(File dir)
@@ -134,7 +138,6 @@ public class WebServer {
                 }
             }
         }
-        // either file or an empty directory
         System.out.println("removing file or directory : " + dir.getName());
         return dir.delete();
     }
@@ -175,26 +178,23 @@ public class WebServer {
             setUp(requestBytes, taskDir, binName);
             startCommand(taskDir, binName, binArgs);
             return new TaskStatus(postProcess(taskDir), true);
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             return new TaskStatus(new byte[0], false);
         }
     }
 
-    private void startCommand(String taskDir, String binName, String binArgs) throws IOException
+    private void startCommand(String taskDir, String binName, String binArgs) throws IOException, InterruptedException
     {
         File file = new File(binName);
 
-        try {
-            String command = "java -jar " + file.getName() + " " + binArgs;
-            String fullCommand = String.format("cd %s; %s", taskDir, command);
-            System.out.println(String.format("Launching worker instance : %s ", fullCommand));
-            String[] cmd1 = { "/bin/sh", "-c", fullCommand };
-            Process p1 = Runtime.getRuntime().exec(cmd1);
-            p1.waitFor();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        String command = "java -jar " + file.getName() + " " + binArgs;
+        String fullCommand = String.format("cd %s; %s", taskDir, command);
+        System.out.println(String.format("Launching worker instance : %s ", fullCommand));
+        String[] cmd1 = { "/bin/sh", "-c", fullCommand };
+        Process p1 = Runtime.getRuntime().exec(cmd1);
+        p1.waitFor();
+
 
         System.out.println("process finish!");
     }

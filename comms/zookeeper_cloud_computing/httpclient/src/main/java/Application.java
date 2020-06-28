@@ -78,8 +78,6 @@ public class Application {
 
     public static void main(String[] args) throws Exception
     {
-        Application app = new Application();
-
         List<String> workAddresses = getWorkAddress();
         if (workAddresses.size() == 0) {
             System.out.println("no server available!");
@@ -90,11 +88,12 @@ public class Application {
         }
 
         ArrayList<Task> tasks = new ArrayList<Task>();
-        tasks.add(new Task("task1", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "10 1000"));
-        tasks.add(new Task("task2", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "500 10000"));
-        tasks.add(new Task("task3", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "5001 1000000"));
-        tasks.add(new Task("task4", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "10000 10000000"));
-        tasks.add(new Task("task5", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "500 1000"));
+        final String pathToBin = "./addIntegers-1.0-SNAPSHOT-jar-with-dependencies.jar"; 
+        tasks.add(new Task("task1", pathToBin, "1 1000"));
+        tasks.add(new Task("task2", pathToBin, "500 10000"));
+        tasks.add(new Task("task3", pathToBin, "5001 1000000"));
+        tasks.add(new Task("task4", pathToBin, "1 10000000"));
+        tasks.add(new Task("task5", pathToBin, "500 1000"));
 
         for (int i = 0; i < tasks.size(); ++i) {
             Task task = tasks.get(i);
@@ -112,6 +111,7 @@ public class Application {
             try {
                 task.serverResponse.join();
                 String result = task.serverResponse.get();
+                System.out.println(String.format("recv result for task : %s", task.id));
                 String taskDir = String.format("results/task%d", i);
 
                 new File(taskDir).mkdirs();
