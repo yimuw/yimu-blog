@@ -22,40 +22,42 @@
  *  SOFTWARE.
  */
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.io.*;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.zookeeper.KeeperException;
 
-public class Application {
-    private static final String WORKER_ADDRESS_1 = "http://localhost:8081/task";
-    private static final String WORKER_ADDRESS_2 = "http://localhost:8082/task";
-
-    static private byte[] readData(String fileName)
+class Task {
+    Task(String id, String bin, String arg)
     {
-        try {
-            InputStream inputStream = new FileInputStream(fileName);
-            long fileSize = new File(fileName).length();
-            byte[] allBytes = new byte[(int)fileSize];
+        this.id = id;
+        this.binName = bin;
+        this.argName = arg;
+    }
+    String id;
+    String binName;
+    String argName;
 
-            inputStream.read(allBytes);
+    CompletableFuture<String> serverResponse;
+    String resultPath;
+}
 
-            System.out.println("file size: " + fileSize);
+public class Application {
+    static private byte[] readData(String fileName) throws IOException
+    {
+        InputStream inputStream = new FileInputStream(fileName);
+        long fileSize = new File(fileName).length();
+        byte[] allBytes = new byte[(int)fileSize];
 
-            return allBytes;
-
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        return new byte[0];
+        inputStream.read(allBytes);
+        inputStream.close();
+        return allBytes;
     }
 
     static private List<String> getWorkAddress()
@@ -74,36 +76,76 @@ public class Application {
         return Collections.emptyList();
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws Exception
+    {
         Application app = new Application();
 
-        
         List<String> workAddresses = getWorkAddress();
-        for(String s: workAddresses) {
-            System.out.println("worker address: " + s);
-        }            
-
-        String binName = args[0];
-        String argName = args[1];
-        byte[] requestPayload = readData(binName);
-        
-        WebClient webClient = new WebClient();
-        CompletableFuture<String> future = webClient.sendTask(WORKER_ADDRESS_1, binName, argName, requestPayload);
-        
-        try {
-            future.join();
-            String result = future.get();
-            System.out.println("recv : " + result);
-            System.out.println("file size: " + result.getBytes(StandardCharsets.US_ASCII).length);
-            
-            OutputStream outputStream = new FileOutputStream("recv_result.zip");
-            byte[] bytes = result.getBytes(StandardCharsets.US_ASCII);
-            outputStream.write(bytes);
-            outputStream.close();              
-        } catch (Exception e) {
-            //TODO: handle exception
-            e.printStackTrace();
-            System.out.println("exception!");
+        if (workAddresses.size() == 0) {
+            System.out.println("no server available!");
+            return;
         }
+        for (String s : workAddresses) {
+            System.out.println("worker address: " + s);
+        }
+
+        ArrayList<Task> tasks = new ArrayList<Task>();
+        tasks.add(new Task("task1", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "10 1000"));
+        tasks.add(new Task("task2", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "500 10000"));
+        tasks.add(new Task("task3", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "5001 1000000"));
+        tasks.add(new Task("task4", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "10000 10000000"));
+        tasks.add(new Task("task5", "flaky.worker-1.0-SNAPSHOT-jar-with-dependencies.jar", "500 1000"));
+
+        for (int i = 0; i < tasks.size(); ++i) {
+            Task task = tasks.get(i);
+            byte[] requestPayload = readData(task.binName);
+            WebClient webClient = new WebClient();
+            System.out.println(String.format("send task [%s] to server", task.id));
+            task.serverResponse = webClient.sendTask(workAddresses.get(i % workAddresses.size()) + "/task",
+                task.id, task.binName, task.argName, requestPayload);
+        }
+
+        new File("results").mkdirs();
+
+        for (int i = 0; i < tasks.size(); ++i) {
+            Task task = tasks.get(i);
+            try {
+                task.serverResponse.join();
+                String result = task.serverResponse.get();
+                String taskDir = String.format("results/task%d", i);
+
+                new File(taskDir).mkdirs();
+                String resultFilePath = taskDir + "/result.txt";
+                OutputStream outputStream = new FileOutputStream(resultFilePath);
+                byte[] bytes = result.getBytes(StandardCharsets.US_ASCII);
+                outputStream.write(bytes);
+                outputStream.close();
+                task.resultPath = resultFilePath;
+            } catch (IOException | InterruptedException | ExecutionException e) {
+                System.out.println("exception when connect to servers");
+                e.printStackTrace();
+                throw e;
+            }
+        }
+
+        BigInteger sum = new BigInteger("0");
+        for (int i = 0; i < tasks.size(); ++i) {
+            Task task = tasks.get(i);
+            File file = new File(task.resultPath);
+            FileReader fr;
+            try {
+                fr = new FileReader(file);
+                BufferedReader br = new BufferedReader(fr);
+                String line;
+                line = br.readLine();
+                BigInteger subResult = new BigInteger(line);
+                sum = sum.add(subResult);
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw e;
+            }
+        }
+
+        System.out.println("sum: " + sum);
     }
 }

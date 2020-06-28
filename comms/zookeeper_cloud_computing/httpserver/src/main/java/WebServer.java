@@ -27,25 +27,14 @@ import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
-import java.nio.charset.StandardCharsets;
-// import java.io.File;
-import java.nio.file.*;
-
 import java.io.*;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+
 import java.util.concurrent.Executors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 public class WebServer {
     private static final String TASK_ENDPOINT = "/task";
     private static final String STATUS_ENDPOINT = "/status";
-    private static String resultDir = "result";
 
     private final int port;
     private HttpServer server;
@@ -78,10 +67,32 @@ public class WebServer {
         statusContext.setHandler(this ::handleStatusCheckRequest);
         taskContext.setHandler(this ::handleTaskRequest);
 
-        server.setExecutor(Executors.newFixedThreadPool(8));
+        server.setExecutor(Executors.newFixedThreadPool(1));
         server.start();
 
         System.out.println("server start!");
+    }
+
+    boolean checkHeaderHas(Headers headers, String headerName)
+    {
+        if (headers.containsKey(headerName)) {
+            System.out.println(headerName + headers.get(headerName).get(0));
+            return true;
+        } else {
+            System.out.println("request doesn't contain " + headerName);
+            return false;
+        }
+    }
+
+    class TaskStatus {
+        TaskStatus(byte[] result, boolean success)
+        {
+            this.result = result;
+            this.success = success;
+        }
+
+        byte[] result;
+        boolean success;
     }
 
     private void handleTaskRequest(HttpExchange exchange) throws IOException
@@ -93,62 +104,22 @@ public class WebServer {
 
         Headers headers = exchange.getRequestHeaders();
 
-        boolean isDebugMode = false;
-        if (headers.containsKey("X-Debug") && headers.get("X-Debug").get(0).equalsIgnoreCase("true")) {
-            isDebugMode = true;
+        if (!(checkHeaderHas(headers, "binName")
+                && checkHeaderHas(headers, "binName")
+                && checkHeaderHas(headers, "binName"))) {
+            return;
         }
-
-        if (headers.containsKey("binName")) {
-            System.out.println("binName:" + headers.get("binName").get(0));
-            System.out.println("binArgs:" + headers.get("binArgs").get(0));
-        }
-
-        long startTime = System.nanoTime();
 
         byte[] requestBytes = exchange.getRequestBody().readAllBytes();
 
         String binName = headers.get("binName").get(0);
+        String taskId = headers.get("taskId").get(0);
         String binArgs = headers.get("binArgs").get(0);
-        byte[] responseBytes = calculateResponse(requestBytes, binName, binArgs);
-
-        long finishTime = System.nanoTime();
-
-        if (isDebugMode) {
-            String debugMessage = String.format("Operation took %d ns", finishTime - startTime);
-            exchange.getResponseHeaders().put("X-Debug-Info", Arrays.asList(debugMessage));
-        }
-
-        sendResponse(responseBytes, exchange);
-    }
-
-    private String pathInResultDir(String s)
-    {
-        return resultDir + "/" + s;
-    }
-
-    private static void zipFiles(String zipFilePath, String[] filePaths)
-    {
-        try {
-            File firstFile = new File(zipFilePath);
-            String zipFileName = firstFile.getName();
-
-            FileOutputStream fos = new FileOutputStream(zipFileName);
-            ZipOutputStream zos = new ZipOutputStream(fos);
-
-            for (String aFile : filePaths) {
-                zos.putNextEntry(new ZipEntry(new File(aFile).getName()));
-
-                byte[] bytes = Files.readAllBytes(Paths.get(aFile));
-                zos.write(bytes, 0, bytes.length);
-                zos.closeEntry();
-            }
-
-            zos.close();
-
-        } catch (FileNotFoundException ex) {
-            System.err.println("A file does not exist: " + ex);
-        } catch (IOException ex) {
-            System.err.println("I/O error: " + ex);
+        TaskStatus status = calculateResponse(requestBytes, taskId, binName, binArgs);
+        if (status.success) {
+            sendResponse(status.result, exchange, 200);
+        } else {
+            sendResponse(status.result, exchange, 400);
         }
     }
 
@@ -163,68 +134,60 @@ public class WebServer {
                 }
             }
         }
-
         // either file or an empty directory
         System.out.println("removing file or directory : " + dir.getName());
         return dir.delete();
     }
 
-    private byte[] calculateResponse(byte[] requestBytes, String binName, String binArgs)
+    private void setUp(byte[] requestBytes, String taskDir, String binName) throws IOException
     {
-        try {
-            File resdir = new File(resultDir);
-            if (resdir.exists()) {
-                deleteDirectory(resdir);
-            }
-            resdir.mkdir();
-
-            OutputStream outputStream = new FileOutputStream(pathInResultDir(binName));
-            outputStream.write(requestBytes);
-            outputStream.close();
-
-            System.out.println("file received and saved");
-
-            File folder = new File(resultDir);
-            String[] files = folder.list().clone();
-
-            startCommand(binName, binArgs);
-
-            String[] newFiles = folder.list();
-
-            Set<String> ad = new HashSet<String>(Arrays.asList(files));
-            Set<String> s = new HashSet<String>(Arrays.asList(newFiles));
-            s.removeAll(ad);
-
-            String[] filesToSend = Arrays.copyOf(s.toArray(), s.size(), String[].class);
-
-            for (String file : filesToSend) {
-                System.out.println("file to send: " + file);
-            }
-
-            String resultFile = "result.zip";
-            zipFiles(resultFile, filesToSend);
-            InputStream inputStream = new FileInputStream(resultFile);
-            long fileSize = new File(resultFile).length();
-            byte[] allBytes = new byte[(int)fileSize];
-            System.out.println("file size: " + fileSize);
-            inputStream.read(allBytes);
-            inputStream.close();
-            return allBytes;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return new String("file received and fail to save !\n").getBytes();
+        File resdir = new File(taskDir);
+        if (resdir.exists()) {
+            System.out.println("delete exist result dir");
+            deleteDirectory(resdir);
         }
+        resdir.mkdir();
 
-        // return new String("file received !\n").getBytes();
+        String binSavePath = taskDir + "/" + binName;
+        System.out.println("saving bin at:" + binSavePath);
+
+        OutputStream outputStream = new FileOutputStream(binSavePath);
+        outputStream.write(requestBytes);
+        outputStream.close();
+        System.out.println("bin received and saved");
     }
 
-    private void startCommand(String binName, String binArgs) throws IOException
+    private byte[] postProcess(String taskDir) throws IOException
+    {
+        String RESULT_FILE = "output.txt";
+        String resultFilePath = taskDir + "/" + RESULT_FILE;
+        InputStream inputStream = new FileInputStream(resultFilePath);
+        long fileSize = new File(resultFilePath).length();
+        byte[] allBytes = new byte[(int)fileSize];
+        inputStream.read(allBytes);
+        inputStream.close();
+        return allBytes;
+    }
+
+    private TaskStatus calculateResponse(byte[] requestBytes, String taskDir, String binName, String binArgs)
+    {
+        try {
+            setUp(requestBytes, taskDir, binName);
+            startCommand(taskDir, binName, binArgs);
+            return new TaskStatus(postProcess(taskDir), true);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new TaskStatus(new byte[0], false);
+        }
+    }
+
+    private void startCommand(String taskDir, String binName, String binArgs) throws IOException
     {
         File file = new File(binName);
 
         try {
             String command = "java -jar " + file.getName() + " " + binArgs;
-            String fullCommand = String.format("cd %s; %s", resultDir, command);
+            String fullCommand = String.format("cd %s; %s", taskDir, command);
             System.out.println(String.format("Launching worker instance : %s ", fullCommand));
             String[] cmd1 = { "/bin/sh", "-c", fullCommand };
             Process p1 = Runtime.getRuntime().exec(cmd1);
@@ -244,12 +207,12 @@ public class WebServer {
         }
 
         String responseMessage = "Server is alive\n";
-        sendResponse(responseMessage.getBytes(), exchange);
+        sendResponse(responseMessage.getBytes(), exchange, 200);
     }
 
-    private void sendResponse(byte[] responseBytes, HttpExchange exchange) throws IOException
+    private void sendResponse(byte[] responseBytes, HttpExchange exchange, int code) throws IOException
     {
-        exchange.sendResponseHeaders(200, responseBytes.length);
+        exchange.sendResponseHeaders(code, responseBytes.length);
         OutputStream outputStream = exchange.getResponseBody();
         outputStream.write(responseBytes);
         outputStream.flush();

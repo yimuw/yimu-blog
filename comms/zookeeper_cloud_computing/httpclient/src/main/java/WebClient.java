@@ -39,11 +39,13 @@ public class WebClient {
 
     public CompletableFuture<String> sendTask(
             String url, 
+            String taskId,
             String binName, 
             String binArgs,
             byte[] requestPayload) {
         HttpRequest request = HttpRequest.newBuilder()
                 .POST(HttpRequest.BodyPublishers.ofByteArray(requestPayload))
+                .header("taskId", taskId)
                 .header("binName", binName)
                 .header("binArgs", binArgs)
                 .uri(URI.create(url))
