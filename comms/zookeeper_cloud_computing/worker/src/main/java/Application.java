@@ -19,7 +19,7 @@ public class Application implements Watcher {
         ZooKeeper zooKeeper = application.connectToZookeeper();
         ServiceRegistry serviceRegistry = new ServiceRegistry(zooKeeper);
 
-        WebServer server = new WebServer(serverPort);
+        Worker server = new Worker(serverPort);
         server.startServer();
         String currentServerAddress = String.format("http://%s:%d", InetAddress.getLocalHost().getCanonicalHostName(), serverPort);
 

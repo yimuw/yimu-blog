@@ -31,8 +31,9 @@ import java.io.*;
 import java.net.InetSocketAddress;
 
 import java.util.concurrent.Executors;
+import messages.ComputingTask;
 
-public class WebServer {
+public class Worker {
     private static final String TASK_ENDPOINT = "/task";
     private static final String STATUS_ENDPOINT = "/status";
 
@@ -41,13 +42,13 @@ public class WebServer {
 
     public void startServer(int serverPort)
     {
-        WebServer webServer = new WebServer(serverPort);
+        Worker webServer = new Worker(serverPort);
         webServer.startServer();
 
         System.out.println("Server is listening on port " + serverPort);
     }
 
-    public WebServer(int port)
+    public Worker(int port)
     {
         this.port = port;
     }
@@ -104,20 +105,11 @@ public class WebServer {
 
         System.out.println("============ Handling new computing request =============");
 
-        Headers headers = exchange.getRequestHeaders();
-
-        if (!(checkHeaderHas(headers, "binName")
-                && checkHeaderHas(headers, "taskId")
-                && checkHeaderHas(headers, "binArgs"))) {
-            return;
-        }
-
         byte[] requestBytes = exchange.getRequestBody().readAllBytes();
 
-        String binName = headers.get("binName").get(0);
-        String taskId = headers.get("taskId").get(0);
-        String binArgs = headers.get("binArgs").get(0);
-        TaskStatus status = calculateResponse(requestBytes, taskId, binName, binArgs);
+        messages.ComputingTask task = messages.ComputingTask.deserialize(requestBytes);
+
+        TaskStatus status = calculateResponse(task.bin, task.taskId, task.binName, task.args);
         if (status.success) {
             sendResponse(status.result, exchange, 200);
         } else {
@@ -194,7 +186,6 @@ public class WebServer {
         String[] cmd1 = { "/bin/sh", "-c", fullCommand };
         Process p1 = Runtime.getRuntime().exec(cmd1);
         p1.waitFor();
-
 
         System.out.println("process finish!");
     }

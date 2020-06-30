@@ -27,11 +27,11 @@ import java.util.Collections;
 import java.util.List;
 import java.io.*;
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.zookeeper.KeeperException;
+import messages.ComputingTask;
 
 class Task {
     Task(String id, String bin, String arg)
@@ -88,60 +88,36 @@ public class Application {
         }
 
         ArrayList<Task> tasks = new ArrayList<Task>();
-        final String pathToBin = "./addIntegers-1.0-SNAPSHOT-jar-with-dependencies.jar"; 
-        tasks.add(new Task("task1", pathToBin, "1 1000"));
-        tasks.add(new Task("task2", pathToBin, "500 10000"));
-        tasks.add(new Task("task3", pathToBin, "5001 1000000"));
-        tasks.add(new Task("task4", pathToBin, "1 10000000"));
-        tasks.add(new Task("task5", pathToBin, "500 1000"));
+        final String PATH_TO_BIN = "./addIntegers-1.0-SNAPSHOT-jar-with-dependencies.jar";
+        tasks.add(new Task("task1", PATH_TO_BIN, "1 1000"));
+        tasks.add(new Task("task2", PATH_TO_BIN, "500 10000"));
+        tasks.add(new Task("task3", PATH_TO_BIN, "5001 1000000"));
+        tasks.add(new Task("task4", PATH_TO_BIN, "1 10000000"));
+        tasks.add(new Task("task5", PATH_TO_BIN, "500 1000"));
 
         for (int i = 0; i < tasks.size(); ++i) {
             Task task = tasks.get(i);
-            byte[] requestPayload = readData(task.binName);
+            byte[] bin = readData(task.binName);
+            ComputingTask computingTask = new ComputingTask(bin, task.argName, task.binName, task.id);
             WebClient webClient = new WebClient();
-            System.out.println(String.format("send task [%s] to server", task.id));
+            System.out.println(String.format("send task [%s] to server [%s]", task.id, workAddresses.get(i % workAddresses.size())));
             task.serverResponse = webClient.sendTask(workAddresses.get(i % workAddresses.size()) + "/task",
-                task.id, task.binName, task.argName, requestPayload);
+                ComputingTask.serialize(computingTask));
         }
 
-        new File("results").mkdirs();
-
+        BigInteger sum = new BigInteger("0");
         for (int i = 0; i < tasks.size(); ++i) {
             Task task = tasks.get(i);
             try {
                 task.serverResponse.join();
                 String result = task.serverResponse.get();
                 System.out.println(String.format("recv result for task : %s", task.id));
-                String taskDir = String.format("results/task%d", i);
-
-                new File(taskDir).mkdirs();
-                String resultFilePath = taskDir + "/result.txt";
-                OutputStream outputStream = new FileOutputStream(resultFilePath);
-                byte[] bytes = result.getBytes(StandardCharsets.US_ASCII);
-                outputStream.write(bytes);
-                outputStream.close();
-                task.resultPath = resultFilePath;
-            } catch (IOException | InterruptedException | ExecutionException e) {
-                System.out.println("exception when connect to servers");
-                e.printStackTrace();
-                throw e;
-            }
-        }
-
-        BigInteger sum = new BigInteger("0");
-        for (int i = 0; i < tasks.size(); ++i) {
-            Task task = tasks.get(i);
-            File file = new File(task.resultPath);
-            FileReader fr;
-            try {
-                fr = new FileReader(file);
-                BufferedReader br = new BufferedReader(fr);
-                String line;
-                line = br.readLine();
-                BigInteger subResult = new BigInteger(line);
+                BigInteger subResult = new BigInteger(result.replace("\n", ""));
                 sum = sum.add(subResult);
-            } catch (IOException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                System.out.println("exception when getting response from servers");
                 e.printStackTrace();
+                ;
                 throw e;
             }
         }
