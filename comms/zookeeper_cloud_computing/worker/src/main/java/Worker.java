@@ -29,28 +29,62 @@ import com.sun.net.httpserver.HttpServer;
 
 import java.io.*;
 import java.net.InetSocketAddress;
-
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import messages.ComputingTask;
+import messages.kafka.WorkerStatus;
+import messages.kafka.WorkerStatusSerializer;
 
-public class Worker {
+
+class KafkaStatusThread extends Thread {
+    private KafkaHelper<WorkerStatus> kafkaStatusSender;
+    private LinkedList<String> tasksProcessed;
+    private String workerName;
+
+    public KafkaStatusThread(LinkedList<String> tasksProcessed, String workerName) {
+        this.tasksProcessed = tasksProcessed;
+        this.workerName = workerName;
+        this.kafkaStatusSender = new KafkaHelper<WorkerStatus>(WorkerStatusSerializer.class.getName());
+    }
+
+    @Override
+    public void run()
+    {
+        System.out.println("start kafka thread");
+        try {
+            while (true) {
+                WorkerStatus message = new WorkerStatus(workerName, tasksProcessed);
+                kafkaStatusSender.produceMessages(message);
+                System.out.println("Send message to kafka");
+                sleep(1000);
+            }
+        }
+        catch (ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+            System.out.println("KafkaStatusThread exit");
+        }
+    }
+}
+
+
+public class Worker{
     private static final String TASK_ENDPOINT = "/task";
     private static final String STATUS_ENDPOINT = "/status";
-
     private final int port;
     private HttpServer server;
-
-    public void startServer(int serverPort)
-    {
-        Worker webServer = new Worker(serverPort);
-        webServer.startServer();
-
-        System.out.println("Server is listening on port " + serverPort);
-    }
+    private LinkedList<String> tasksProcessed;
 
     public Worker(int port)
     {
+        tasksProcessed = new LinkedList<String>();
         this.port = port;
+    }
+
+    private void startKafkaSendingThread() {
+        KafkaStatusThread t = new KafkaStatusThread(this.tasksProcessed, server.getAddress().getHostString() + port);
+        t.start();
     }
 
     public void startServer()
@@ -72,6 +106,9 @@ public class Worker {
         server.start();
 
         System.out.println("server start!");
+
+        this.startKafkaSendingThread();
+        System.out.println("kafka update thread start");
     }
 
     boolean checkHeaderHas(Headers headers, String headerName)
@@ -96,6 +133,15 @@ public class Worker {
         boolean success;
     }
 
+    private void trackTasks(String taskId) {
+        tasksProcessed.add(taskId);
+        int MAX_LEN = 10;
+        if(tasksProcessed.size() > MAX_LEN) {
+            tasksProcessed.remove(0);
+        }
+
+    }
+
     private void handleTaskRequest(HttpExchange exchange) throws IOException
     {
         if (!exchange.getRequestMethod().equalsIgnoreCase("post")) {
@@ -108,6 +154,8 @@ public class Worker {
         byte[] requestBytes = exchange.getRequestBody().readAllBytes();
 
         messages.ComputingTask task = messages.ComputingTask.deserialize(requestBytes);
+
+        trackTasks(task.taskId);
 
         TaskStatus status = calculateResponse(task.bin, task.taskId, task.binName, task.args);
         if (status.success) {

@@ -27,6 +27,8 @@ import java.util.Collections;
 import java.util.List;
 import java.io.*;
 import java.math.BigInteger;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -49,6 +51,7 @@ class Task {
 }
 
 public class Application {
+
     static private byte[] readData(String fileName) throws IOException
     {
         InputStream inputStream = new FileInputStream(fileName);
@@ -89,14 +92,17 @@ public class Application {
 
         ArrayList<Task> tasks = new ArrayList<Task>();
         final String PATH_TO_BIN = "./addIntegers-1.0-SNAPSHOT-jar-with-dependencies.jar";
-        tasks.add(new Task("task1", PATH_TO_BIN, "1 1000"));
-        tasks.add(new Task("task2", PATH_TO_BIN, "500 10000"));
-        tasks.add(new Task("task3", PATH_TO_BIN, "5001 1000000"));
-        tasks.add(new Task("task4", PATH_TO_BIN, "1 10000000"));
-        tasks.add(new Task("task5", PATH_TO_BIN, "500 1000"));
+        tasks.add(new Task("task1", PATH_TO_BIN, "1 100000000"));
+        tasks.add(new Task("task2", PATH_TO_BIN, "500 100000000"));
+        tasks.add(new Task("task3", PATH_TO_BIN, "5001 10000000"));
+        tasks.add(new Task("task4", PATH_TO_BIN, "1 20000000"));
+        tasks.add(new Task("task5", PATH_TO_BIN, "500 20000000"));
 
         for (int i = 0; i < tasks.size(); ++i) {
             Task task = tasks.get(i);
+
+            task.id += "-" + System.currentTimeMillis();
+
             byte[] bin = readData(task.binName);
             ComputingTask computingTask = new ComputingTask(bin, task.argName, task.binName, task.id);
             WebClient webClient = new WebClient();
