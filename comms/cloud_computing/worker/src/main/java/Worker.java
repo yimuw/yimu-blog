@@ -30,20 +30,19 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import messages.ComputingTask;
 import messages.kafka.WorkerStatus;
 import messages.kafka.WorkerStatusSerializer;
 
-
 class KafkaStatusThread extends Thread {
     private KafkaHelper<WorkerStatus> kafkaStatusSender;
     private LinkedList<String> tasksProcessed;
     private String workerName;
 
-    public KafkaStatusThread(LinkedList<String> tasksProcessed, String workerName) {
+    public KafkaStatusThread(LinkedList<String> tasksProcessed, String workerName)
+    {
         this.tasksProcessed = tasksProcessed;
         this.workerName = workerName;
         this.kafkaStatusSender = new KafkaHelper<WorkerStatus>(WorkerStatusSerializer.class.getName());
@@ -57,19 +56,16 @@ class KafkaStatusThread extends Thread {
             while (true) {
                 WorkerStatus message = new WorkerStatus(workerName, tasksProcessed);
                 kafkaStatusSender.produceMessages(message);
-                System.out.println("Send message to kafka");
                 sleep(1000);
             }
-        }
-        catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException | InterruptedException e) {
             e.printStackTrace();
             System.out.println("KafkaStatusThread exit");
         }
     }
 }
 
-
-public class Worker{
+public class Worker {
     private static final String TASK_ENDPOINT = "/task";
     private static final String STATUS_ENDPOINT = "/status";
     private final int port;
@@ -82,7 +78,8 @@ public class Worker{
         this.port = port;
     }
 
-    private void startKafkaSendingThread() {
+    private void startKafkaSendingThread()
+    {
         KafkaStatusThread t = new KafkaStatusThread(this.tasksProcessed, server.getAddress().getHostString() + port);
         t.start();
     }
@@ -133,13 +130,13 @@ public class Worker{
         boolean success;
     }
 
-    private void trackTasks(String taskId) {
+    private void trackTasks(String taskId)
+    {
         tasksProcessed.add(taskId);
         int MAX_LEN = 10;
-        if(tasksProcessed.size() > MAX_LEN) {
+        if (tasksProcessed.size() > MAX_LEN) {
             tasksProcessed.remove(0);
         }
-
     }
 
     private void handleTaskRequest(HttpExchange exchange) throws IOException

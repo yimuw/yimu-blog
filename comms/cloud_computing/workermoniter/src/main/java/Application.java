@@ -24,7 +24,6 @@
 
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.serialization.LongDeserializer;
-import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -61,11 +60,12 @@ public class Application {
             }
 
             for (ConsumerRecord<Long, WorkerStatus> record : consumerRecords) {
-                System.out.println(String.format("Received record (key: %d, value: %s, partition: %d, offset: %d",
+                if(false) {
+                    System.out.println(String.format("Received record (key: %d, value: %s, partition: %d, offset: %d",
                         record.key(), record.value().toString(), record.partition(), record.offset()));
-
+                }
                 System.out.println(String.format("Status for task %s", record.value().getWorkerName()));
-                System.out.println("current tasks:");
+                System.out.println("current processed tasks:");
                 String tasksInfo = String.join(",", record.value().getProcessedTask());
                 System.out.println(tasksInfo);
             }

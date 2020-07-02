@@ -24,7 +24,6 @@
 
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.serialization.LongSerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -35,21 +34,27 @@ public class KafkaHelper<T> {
     private String typeSerializerName;
     private Producer<Long, T> kafkaProducer;
 
-    public KafkaHelper(String typeSerializerName) {
+    public KafkaHelper(String typeSerializerName)
+    {
         this.typeSerializerName = typeSerializerName;
         this.kafkaProducer = createKafkaProducer(BOOTSTRAP_SERVERS);
-        System.out.println("kafka producer created");;
+        System.out.println("kafka producer created");
+        ;
     }
 
-    public void produceMessages(T message) throws ExecutionException, InterruptedException {
-            ProducerRecord<Long, T> record = new ProducerRecord<>(TOPIC, message);
+    public void produceMessages(T message) throws ExecutionException, InterruptedException
+    {
+        ProducerRecord<Long, T> record = new ProducerRecord<>(TOPIC, message);
 
-            RecordMetadata recordMetadata = kafkaProducer.send(record).get();
+        RecordMetadata recordMetadata = kafkaProducer.send(record).get();
+        if (false) {
             System.out.println(String.format("Record with (key: %s, value: %s), was sent to (partition: %d, offset: %d",
-                    record.key(), record.value(), recordMetadata.partition(), recordMetadata.offset()));
+                record.key(), record.value(), recordMetadata.partition(), recordMetadata.offset()));
+        }
     }
 
-    public Producer<Long, T> createKafkaProducer(String bootstrapServers) {
+    public Producer<Long, T> createKafkaProducer(String bootstrapServers)
+    {
         Properties properties = new Properties();
 
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -59,5 +64,4 @@ public class KafkaHelper<T> {
 
         return new KafkaProducer<>(properties);
     }
-
 }
