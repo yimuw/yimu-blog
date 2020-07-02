@@ -29,7 +29,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>distributed.systems</groupId>
-    <artifactId>kafka.consumer</artifactId>
+    <artifactId>workermoniter</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <build>
