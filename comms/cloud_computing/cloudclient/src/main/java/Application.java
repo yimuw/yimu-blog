@@ -1,34 +1,8 @@
-/*
- *  MIT License
- *
- *  Copyright (c) 2019 Michael Pogrebinsky - Distributed Systems & Cloud Computing with Java
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- */
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.io.*;
 import java.math.BigInteger;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -92,11 +66,11 @@ public class Application {
 
         ArrayList<Task> tasks = new ArrayList<Task>();
         final String PATH_TO_BIN = "./addIntegers-1.0-SNAPSHOT-jar-with-dependencies.jar";
-        tasks.add(new Task("task1", PATH_TO_BIN, "1 100000000"));
-        tasks.add(new Task("task2", PATH_TO_BIN, "500 100000000"));
-        tasks.add(new Task("task3", PATH_TO_BIN, "5001 10000000"));
-        tasks.add(new Task("task4", PATH_TO_BIN, "1 20000000"));
-        tasks.add(new Task("task5", PATH_TO_BIN, "500 20000000"));
+        tasks.add(new Task("task1", PATH_TO_BIN, "0 100000000"));
+        tasks.add(new Task("task2", PATH_TO_BIN, "100000000 200000000"));
+        tasks.add(new Task("task3", PATH_TO_BIN, "200000000 300000000"));
+        tasks.add(new Task("task4", PATH_TO_BIN, "300000000 40000000"));
+        tasks.add(new Task("task5", PATH_TO_BIN, "40000000 50000000"));
 
         for (int i = 0; i < tasks.size(); ++i) {
             Task task = tasks.get(i);
