@@ -81,13 +81,16 @@ class Plus(Operator):
         self.result.value = self.a.value + self.b.value
 
     def backward(self):
-        self.a.grad = self.result.grad
-        self.b.grad = self.result.grad
+        if self.a is self.b:
+            self.a.grad = 2 * self.result.grad
+        else:
+            self.a.grad = self.result.grad
+            self.b.grad = self.result.grad
 
 
 class Mul(Operator):
     def __init__(self, a: Number, b: Number):
-        super().__init__("({})+({})".format(a.id, b.id))
+        super().__init__("({})*({})".format(a.id, b.id))
         self.a = a
         self.b = b
         self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
@@ -99,27 +102,37 @@ class Mul(Operator):
         self.result.value = self.a.value * self.b.value
 
     def backward(self):
-        self.a.grad = self.result.grad * self.b.value
-        self.b.grad = self.result.grad * self.a.value
+        if self.a is self.b:
+            self.a.grad = 2 * self.result.grad * self.a.value
+        else:
+            self.a.grad = self.result.grad * self.b.value
+            self.b.grad = self.result.grad * self.a.value
 
 
 class NumberFlowCore:
-    def __init__(self):
+    def __init__(self, cost_node):
         self.topologic_order = []
 
-    def topological_sort(self, cost_node):
+        self.cost_node = cost_node
+        self.all_nodes, self.varible_nodes = self.__get_all_nodes(cost_node)
 
-        def get_all_nodes(node):
-            ret = [node]
-            for c in node.children:
-                ret += get_all_nodes(c)
-            return ret
+    def __get_all_nodes(self, node):
+        allnodes = [node]
+        all_leaf_nodes = [node] if len(node.children) == 0 else []
 
-        all_nodes = get_all_nodes(cost_node)
+        # using set for ignore duplications
+        # e.g. cost = a * a
+        for c in set(node.children):
+            sub_allnodes, sub_all_leaf_nodes = self.__get_all_nodes(c)
+            allnodes += sub_allnodes
+            all_leaf_nodes += sub_all_leaf_nodes
 
+        return allnodes, all_leaf_nodes
+
+    def topological_sort(self):
         zero_degree_nodes = []
         indegree = defaultdict(int)
-        for node in all_nodes:
+        for node in self.all_nodes:
             indegree[node] = len(node.children)
             if len(node.children) == 0:
                 zero_degree_nodes.append(node)
@@ -136,17 +149,32 @@ class NumberFlowCore:
 
             zero_degree_nodes = next_zero_degree_nodes
 
-        #print("topo_order:", topo_order)
-        #print("all_nodes:", all_nodes)
-        if len(topo_order) != len(all_nodes):
+        if len(topo_order) != len(self.all_nodes):
+            print(topo_order)
+            print(self.all_nodes)
             raise RuntimeError("cycle found!")
 
         self.topologic_order = topo_order
 
-    def forward(self, cost_node):
-        self.topological_sort(cost_node)
+    def forward(self):
+        self.topological_sort()
 
         for node in self.topologic_order:
             if isinstance(node, Number):
                 continue
             node.forward()
+
+    def backward(self):
+        def dfs(node):
+            if isinstance(node, Operator):
+                node.backward()
+
+            for child in node.children:
+                dfs(child)
+
+        self.cost_node.grad = 1
+        dfs(self.cost_node)
+
+    def gradient_desent(self, rate=0.01):
+        for var in self.varible_nodes:
+            var.value -= rate * var.grad
