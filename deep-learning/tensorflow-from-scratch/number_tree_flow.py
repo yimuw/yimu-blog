@@ -42,6 +42,18 @@ class Number(Node):
         plus.result.children = [plus]
         return plus.result
 
+    def __neg__(self):
+        neg = Neg(self)
+        GLOBAL_VARS.operators.append(neg)
+
+        self.parents.append(neg)
+        neg.result.children = [neg]
+        return neg.result
+
+    def __sub__(self, other):
+        neg_other = - other
+        return self + neg_other
+
     def __mul__(self, other):
         mul = Mul(self, other)
         GLOBAL_VARS.operators.append(mul)
@@ -109,25 +121,45 @@ class Mul(Operator):
             self.b.grad = self.result.grad * self.a.value
 
 
+class Neg(Operator):
+    def __init__(self, a: Number):
+        super().__init__("-({})".format(a.id))
+        self.a = a
+        self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
+
+        self.children = [a]
+        self.parents = [self.result]
+
+    def forward(self):
+        self.result.value = - self.a.value
+
+    def backward(self):
+        self.a.grad = - self.result.grad * self.a.value
+
+
 class NumberFlowCore:
     def __init__(self, cost_node):
         self.topologic_order = []
 
         self.cost_node = cost_node
-        self.all_nodes, self.varible_nodes = self.__get_all_nodes(cost_node)
+        self.all_nodes, self.varible_nodes, self.const_nodes = self.__get_all_nodes(cost_node)
 
     def __get_all_nodes(self, node):
         allnodes = [node]
-        all_leaf_nodes = [node] if len(node.children) == 0 else []
+        all_leaf_nodes = [node] if (isinstance(
+            node, Number) and node.ntype == 'varible') else []
+        all_const_nodes = [node] if (isinstance(
+            node, Number) and node.ntype == 'const') else []
 
         # using set for ignore duplications
         # e.g. cost = a * a
         for c in set(node.children):
-            sub_allnodes, sub_all_leaf_nodes = self.__get_all_nodes(c)
+            sub_allnodes, sub_all_leaf_nodes, sub_all_const_nodes = self.__get_all_nodes(c)
             allnodes += sub_allnodes
             all_leaf_nodes += sub_all_leaf_nodes
+            all_const_nodes += sub_all_const_nodes
 
-        return allnodes, all_leaf_nodes
+        return allnodes, all_leaf_nodes, all_const_nodes
 
     def topological_sort(self):
         zero_degree_nodes = []
@@ -160,9 +192,8 @@ class NumberFlowCore:
         self.topological_sort()
 
         for node in self.topologic_order:
-            if isinstance(node, Number):
-                continue
-            node.forward()
+            if isinstance(node, Operator):
+                node.forward()
 
     def backward(self):
         def dfs(node):
