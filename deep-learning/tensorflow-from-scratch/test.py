@@ -18,9 +18,10 @@ cost = temp * temp
 core = NumberFlowCore(cost)
 for i in range(1000):
     print("cost.val:", cost.value, " iter:", i)
-    core.forward('recur')
+    core.forward()
+    core.clear_grad()
     core.backward()
-    core.gradient_desent(rate=0.001)
+    core.gradient_desent(rate=0.0001)
 
     if cost.value < 1e-8:
         break

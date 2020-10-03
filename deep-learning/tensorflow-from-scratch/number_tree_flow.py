@@ -24,7 +24,7 @@ class Node:
 
 class Number(Node):
 
-    def __init__(self, value=0, id="", ntype="varible"):
+    def __init__(self, value=0, id='', ntype='varible'):
         super().__init__(id)
 
         self.value = value
@@ -94,10 +94,10 @@ class Plus(Operator):
 
     def backward(self):
         if self.a is self.b:
-            self.a.grad = 2 * self.result.grad
+            self.a.grad += 2 * self.result.grad
         else:
-            self.a.grad = self.result.grad
-            self.b.grad = self.result.grad
+            self.a.grad += self.result.grad
+            self.b.grad += self.result.grad
 
 
 class Mul(Operator):
@@ -115,10 +115,10 @@ class Mul(Operator):
 
     def backward(self):
         if self.a is self.b:
-            self.a.grad = 2 * self.result.grad * self.a.value
+            self.a.grad += 2 * self.result.grad * self.a.value
         else:
-            self.a.grad = self.result.grad * self.b.value
-            self.b.grad = self.result.grad * self.a.value
+            self.a.grad += self.result.grad * self.b.value
+            self.b.grad += self.result.grad * self.a.value
 
 
 class Neg(Operator):
@@ -134,7 +134,7 @@ class Neg(Operator):
         self.result.value = - self.a.value
 
     def backward(self):
-        self.a.grad = - self.result.grad * self.a.value
+        self.a.grad += - self.result.grad * self.a.value
 
 
 class NumberFlowCore:
@@ -189,7 +189,8 @@ class NumberFlowCore:
         self.topologic_order = topo_order
 
     def __forward_iterative(self):
-        self.__topological_sort()
+        if not self.topologic_order:
+            self.__topological_sort()
 
         for node in self.topologic_order:
             if isinstance(node, Operator):
@@ -225,15 +226,24 @@ class NumberFlowCore:
             self.__forward_recursive()
 
     def backward(self):
-        def dfs(node):
+        def backward_dfs(node):
             if isinstance(node, Operator):
                 node.backward()
 
             for child in node.children:
-                dfs(child)
+                backward_dfs(child)
 
         self.cost_node.grad = 1
-        dfs(self.cost_node)
+        backward_dfs(self.cost_node)
+
+    def clear_grad(self):
+        def clear_grad_dfs(node):
+            if isinstance(node, Number):
+                node.grad = 0
+            for child in node.children:
+                clear_grad_dfs(child)
+
+        clear_grad_dfs(self.cost_node)
 
     def gradient_desent(self, rate=0.01):
         for var in self.varible_nodes:
