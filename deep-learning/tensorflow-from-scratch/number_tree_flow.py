@@ -142,7 +142,8 @@ class NumberFlowCore:
         self.topologic_order = []
 
         self.cost_node = cost_node
-        self.all_nodes, self.varible_nodes, self.const_nodes = self.__get_all_nodes(cost_node)
+        self.all_nodes, self.varible_nodes, self.const_nodes = self.__get_all_nodes(
+            cost_node)
 
     def __get_all_nodes(self, node):
         allnodes = [node]
@@ -154,14 +155,15 @@ class NumberFlowCore:
         # using set for ignore duplications
         # e.g. cost = a * a
         for c in set(node.children):
-            sub_allnodes, sub_all_leaf_nodes, sub_all_const_nodes = self.__get_all_nodes(c)
+            sub_allnodes, sub_all_leaf_nodes, sub_all_const_nodes = self.__get_all_nodes(
+                c)
             allnodes += sub_allnodes
             all_leaf_nodes += sub_all_leaf_nodes
             all_const_nodes += sub_all_const_nodes
 
         return allnodes, all_leaf_nodes, all_const_nodes
 
-    def topological_sort(self):
+    def __topological_sort(self):
         zero_degree_nodes = []
         indegree = defaultdict(int)
         for node in self.all_nodes:
@@ -182,18 +184,45 @@ class NumberFlowCore:
             zero_degree_nodes = next_zero_degree_nodes
 
         if len(topo_order) != len(self.all_nodes):
-            print(topo_order)
-            print(self.all_nodes)
             raise RuntimeError("cycle found!")
 
         self.topologic_order = topo_order
 
-    def forward(self):
-        self.topological_sort()
+    def __forward_iterative(self):
+        self.__topological_sort()
 
         for node in self.topologic_order:
             if isinstance(node, Operator):
                 node.forward()
+
+    def __forward_recursive(self):
+
+        states = {}
+
+        def evaluate(node):
+            if node in states:
+                if states[node] == 'visiting':
+                    raise RuntimeError("cycle found!")
+                else:
+                    return states[node]
+
+            states[node] = 'visiting'
+
+            for child in node.children:
+                evaluate(child)
+
+            if isinstance(node, Operator):
+                node.forward()
+            if isinstance(node, Number):
+                states[node] = node.value
+
+        evaluate(self.cost_node)
+
+    def forward(self, method='iter'):
+        if method == 'iter':
+            self.__forward_iterative()
+        elif method == 'recur':
+            self.__forward_recursive()
 
     def backward(self):
         def dfs(node):

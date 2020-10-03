@@ -18,7 +18,7 @@ cost = temp * temp
 core = NumberFlowCore(cost)
 for i in range(1000):
     print("cost.val:", cost.value, " iter:", i)
-    core.forward()
+    core.forward('recur')
     core.backward()
     core.gradient_desent(rate=0.001)
 
