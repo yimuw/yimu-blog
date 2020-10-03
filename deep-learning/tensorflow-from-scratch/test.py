@@ -16,15 +16,18 @@ temp = y - (f1*a + f2*b + f3*c + f4*d + e)
 cost = temp * temp
 
 core = NumberFlowCore(cost)
-for i in range(1000):
-    print("cost.val:", cost.value, " iter:", i)
-    core.forward()
-    core.clear_grad()
-    core.backward()
-    core.gradient_desent(rate=0.0001)
 
-    if cost.value < 1e-8:
-        break
+# build the topological order. Ignore it is fine. Just want to copy tensorflow
+with core as graph:
+    for i in range(1000):
+        print("cost.val:", cost.value, " iter:", i)
+        core.forward()
+        core.clear_grad()
+        core.backward()
+        core.gradient_desent(rate=0.0001)
+
+        if cost.value < 1e-8:
+            break
 
 for var in core.varible_nodes:
     print(var.id, var.value)

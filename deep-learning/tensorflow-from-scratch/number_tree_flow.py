@@ -225,6 +225,15 @@ class NumberFlowCore:
         elif method == 'recur':
             self.__forward_recursive()
 
+    # to copy tensorflow
+    def __enter__(self):
+        self.__topological_sort()
+
+    def __exit__(self, type, value, tb):
+        if tb:
+            pass
+        self.topologic_order = []
+
     def backward(self):
         def backward_dfs(node):
             if isinstance(node, Operator):
