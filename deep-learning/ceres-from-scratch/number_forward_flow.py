@@ -1,6 +1,8 @@
 import numpy as np
 import math
 from collections import defaultdict
+import itertools
+import numbers
 
 
 class JetMapImpl:
@@ -12,13 +14,13 @@ class JetMapImpl:
             self.perturb = {var_id: 1.}
 
     def __repr__(self):
-        s = 'value:' + str(self.value) + '\n'
+        s = 'value:' + str(self.value) + ' '
         for p in self.perturb:
-            s += 'id:' + str(p) + ' :' + str(self.perturb[p]) + '\n'
+            s += 'id:' + str(p) + ' :' + str(self.perturb[p]) + ' '
         return s
 
     def __add__(self, other):
-        if isinstance(other, float):
+        if isinstance(other, numbers.Number):
             other = JetMapImpl(other)
 
         ret = JetMapImpl(value=self.value + other.value)
@@ -30,8 +32,14 @@ class JetMapImpl:
             ret.perturb[var] += other.perturb[var]
         return ret
 
+    def __radd__(self, other):
+        if isinstance(other, numbers.Number):
+            other = JetMapImpl(other)
+
+        return other + self
+
     def __mul__(self, other):
-        if isinstance(other, float):
+        if isinstance(other, numbers.Number):
             other = JetMapImpl(other)
 
         ret = JetMapImpl(value=self.value * other.value)
@@ -44,8 +52,14 @@ class JetMapImpl:
             ret.perturb[var] += self.value * other.perturb[var]
         return ret
 
+    def __rmul__(self, other):
+        if isinstance(other, numbers.Number):
+            other = JetMapImpl(other)
+
+        return other * self
+
     def __sub__(self, other):
-        if isinstance(other, float):
+        if isinstance(other, numbers.Number):
             other = JetMapImpl(other)
 
         ret = JetMapImpl(value=self.value - other.value)
@@ -57,9 +71,14 @@ class JetMapImpl:
             ret.perturb[var] -= other.perturb[var]
         return ret
 
+    def __neg__(self):
+        ret = JetMapImpl(value=-self.value)
+        for var in self.perturb:
+            ret.perturb[var] = - self.perturb[var]
+        return ret
 
 def cosine(num):
-    if isinstance(num, float):
+    if isinstance(num, numbers.Number):
         return math.cos(num)
     else:
         ret = JetMapImpl(value=math.cos(num.value))
@@ -72,7 +91,7 @@ def cosine(num):
 
 
 def sine(num):
-    if isinstance(num, float):
+    if isinstance(num, numbers.Number):
         return math.sin(num)
     else:
         ret = JetMapImpl(value=math.sin(num.value))
@@ -87,8 +106,8 @@ def sine(num):
 class ResidualBlock:
     def __init__(self, residual_function, init_vars):
         self.residual_function = residual_function
-        self.jets = [JetMapImpl(v, var_id='var{}'.format(i))
-                     for i, v in enumerate(init_vars)]
+        self.jets = np.array([JetMapImpl(v, var_id='var{}'.format(i))
+                     for i, v in enumerate(init_vars)])
 
     def evaluate(self):
         jet_residual = self.residual_function(self.jets)
@@ -112,22 +131,11 @@ def linear_case():
         """
         r = Ax - b
         """
-        ret = []
-
-        rows = len(A)
-        cols = len(A[0])
-
-        for r in range(rows):
-            prod = 0.
-            for c in range(cols):
-                prod = vars[c] * A[r, c] + prod
-            ret.append(prod - b[r])
-
+        ret = A @ vars - b
         return ret
 
     x0 = np.random.rand(5, 1)
-    r = ResidualBlock(residual_test, x0)
-    r, J = r.evaluate()
+    r, J = ResidualBlock(residual_test, x0).evaluate()
     print('r:', r)
     print('J:', J)
     print('A:', A)
@@ -143,6 +151,7 @@ def linear_case():
 
 def motion_case():
     print('=============== motion (nonlinear) case ==============')
+
     def motion_func(state):
         x, y, v, theta = state
 
@@ -211,6 +220,101 @@ def motion_case():
     print('gt     s1:', s1)
 
 
+def euler_angle_to_rotation(yaw, pitch, roll):
+    from math import cos, sin
+    Rz = np.array([
+        [cos(yaw), -sin(yaw), 0.],
+        [sin(yaw), cos(yaw), 0.],
+        [0, 0, 1.],
+    ])
+    Ry = np.array([
+        [cos(pitch), -0., sin(pitch)],
+        [0., 1., 0.],
+        [-sin(pitch), 0, cos(pitch)],
+    ])
+    Rx = np.array([
+        [1., 0., 0.],
+        [0., cos(roll), -sin(roll)],
+        [0, sin(roll), cos(roll)],
+    ])
+
+    return Rz @ Ry @ Rx
+
+def skew(w):
+    wx, wy, wz = w
+    return np.array([
+        [0, -wz, wy],
+        [wz, 0, -wx],
+        [-wy, wx, 0.],
+    ])
+
+def so3_exp(w):
+    from math import cos, sin
+    theta = np.linalg.norm(w)
+    # Approximation when theta is small
+    if(abs(theta) < 1e-8):
+        return np.identity(3) + skew(w)
+
+    normalized_w  = w / theta
+    K = skew(normalized_w)
+    # Rodrigues
+    R = np.identity(3) + sin(theta) * K + (1 - cos(theta)) * K @ K
+    np.testing.assert_almost_equal(R @ R.transpose(), np.identity(3))
+    
+    return R
+
+def icp_so3():
+    print('=============== icp_so3 ==============')
+    R = euler_angle_to_rotation(0.2,0.1,0.3)
+    assert(abs(np.linalg.det(R) - 1) < 1e-4)
+    t = np.array([1., 2., 3.]).T
+
+    src = np.array([
+        [0, 0, 1],
+        [1, 0, 0],
+        [0, 1, 0],
+        [1, 1, 0],
+        [0, 1, 1],
+        [1, 0, 1],
+        [0, 2, -1],
+    ])
+
+    def transform(p, R, t):
+        return R @ p + t
+
+    def transform_all(src, R, t):
+        return (R @ src.T + t[:, np.newaxis]).T
+
+    target = transform_all(src, R, t)
+    print('target:', target)
+
+    def icp_residual_i(epsilonWithT, Rot, src_i, target_i):
+        E = skew(epsilonWithT[:3])
+        t = epsilonWithT[3:]
+
+        # this is the true function
+        #  return transform(src_i, so3_exp(epsilonWithT[:3]) @ R, t) - target_i
+        # but need to implement a couple of operators for so3_exp
+        return transform(src_i, (E + np.identity(3)) @ Rot, t) - target_i
+
+    epsilonWithT_var = np.array([0., 0., 0., 0., 0., 0.]).T
+    R_var = np.identity(3)
+    for iter in range(20):
+        lhs = np.zeros([6, 6])
+        rhs = np.zeros(6)
+        for src_i, target_i in zip(src, target):
+            r, J = ResidualBlock(lambda param: icp_residual_i(param, R_var, src_i, target_i), epsilonWithT_var).evaluate()
+            lhs += J.T @ J
+            rhs -= J.T @ r
+        delta = 0.8 * np.linalg.solve(lhs, rhs)
+        R_var = so3_exp(delta[:3]) @ R_var
+        epsilonWithT_var[3:] += delta[3:]
+    print('t_est:', epsilonWithT_var[3:])
+    print('R_var:', R_var)
+    print('R_gt: ',R)
+
+
 if __name__ == "__main__":
     linear_case()
     motion_case()
+    icp_so3()
