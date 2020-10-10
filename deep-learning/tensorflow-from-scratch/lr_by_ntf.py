@@ -7,6 +7,37 @@ class LinearRegression:
         pass
 
     def fit(self, X, y):
+        return self.__fit_numpy_impl(X,y)
+
+    def __fit_numpy_impl(self, X, y):
+        assert len(X) == len(y)
+        self.data_num = len(X)
+        self.len_theta = X.shape[1]
+
+        theta = np.array([ntf.Number(value=0, id='t{}'.format(i))
+                 for i in range(self.len_theta)])
+        bias = ntf.Number(value=0, id='b')
+
+        pred = X @ theta + bias
+        diff = pred - y
+        cost = diff.T @ diff * (1 / len(X))
+
+        core = ntf.NumberFlowCore(cost)
+        for i in range(15000):
+            core.forward('recur')
+            if i % 500 == 0:
+                print("cost.val:", cost.value, " iter:", i)
+            core.clear_grad()
+            core.backward()
+            core.gradient_desent(rate=0.001)
+
+        for var in set(core.varible_nodes):
+            print(var.id, var.value)
+
+        self.coef_ = np.array([t.value for t in theta])
+        self.intercept_ = bias.value
+
+    def __fit_iter_impl(self, X, y):
         assert len(X) == len(y)
         self.data_num = len(X)
         self.len_theta = X.shape[1]
@@ -34,9 +65,9 @@ class LinearRegression:
         cost *= scale
 
         core = ntf.NumberFlowCore(cost)
-        for i in range(1000):
+        for i in range(15000):
             core.forward('recur')
-            if i % 50 == 0:
+            if i % 500 == 0:
                 print("cost.val:", cost.value, " iter:", i)
             core.clear_grad()
             core.backward()

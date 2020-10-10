@@ -20,12 +20,12 @@ diabetes_X, diabetes_y = datasets.load_diabetes(return_X_y=True)
 diabetes_X = diabetes_X[:, np.newaxis, 2]
 
 # Split the data into training/testing sets
-diabetes_X_train = diabetes_X[:-200]
-diabetes_X_test = diabetes_X[-200:]
+diabetes_X_train = diabetes_X[:-400]
+diabetes_X_test = diabetes_X[-400:]
 
 # Split the targets into training/testing sets
-diabetes_y_train = diabetes_y[:-200]
-diabetes_y_test = diabetes_y[-200:]
+diabetes_y_train = diabetes_y[:-400]
+diabetes_y_test = diabetes_y[-400:]
 
 # Train the model using the training sets
 regr.fit(diabetes_X_train, diabetes_y_train)

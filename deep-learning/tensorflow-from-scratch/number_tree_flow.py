@@ -1,5 +1,6 @@
 import math
 from collections import defaultdict
+import numbers
 
 
 class GlobalVars:
@@ -34,6 +35,8 @@ class Number(Node):
         self.ntype = ntype
 
     def __add__(self, other):
+        if isinstance(other, numbers.Number):
+            other = Number(value=other, ntype='const')
         plus = Plus(self, other)
         GLOBAL_VARS.operators.append(plus)
 
@@ -41,6 +44,39 @@ class Number(Node):
         other.parents.append(plus)
         plus.result.children = [plus]
         return plus.result
+
+    def __radd__(self, other):
+        if isinstance(other, numbers.Number):
+            other = Number(value=other, ntype='const')
+        return other + self
+
+
+    def __sub__(self, other):
+        if isinstance(other, numbers.Number):
+            other = Number(value=other, ntype='const')
+        neg_other = - other
+        return self + neg_other
+
+    def __rsub__(self, other):
+        if isinstance(other, numbers.Number):
+            other = Number(value=other, ntype='const')    
+        return other - self    
+
+    def __mul__(self, other):
+        if isinstance(other, numbers.Number):
+            other = Number(value=other, ntype='const')
+        mul = Mul(self, other)
+        GLOBAL_VARS.operators.append(mul)
+
+        self.parents.append(mul)
+        other.parents.append(mul)
+        mul.result.children = [mul]
+        return mul.result
+    
+    def __rmul__(self, other):
+        if isinstance(other, numbers.Number):
+            other = Number(value=other, ntype='const')
+        return other * self
 
     def __neg__(self):
         neg = Neg(self)
@@ -50,21 +86,8 @@ class Number(Node):
         neg.result.children = [neg]
         return neg.result
 
-    def __sub__(self, other):
-        neg_other = - other
-        return self + neg_other
-
-    def __mul__(self, other):
-        mul = Mul(self, other)
-        GLOBAL_VARS.operators.append(mul)
-
-        self.parents.append(mul)
-        other.parents.append(mul)
-        mul.result.children = [mul]
-        return mul.result
-
     def __str__(self):
-        return 'value:{} grad:{} #children:{} #parents:{}'.format(self.value, self.grad, len(self.parents),
+        return 'value:{} grad:{} #children:{} #parents:{}'.format(self.value, self.grad, len(self.children),
                                                                   len(self.parents))
 
 

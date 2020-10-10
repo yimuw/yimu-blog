@@ -10,11 +10,14 @@ f1 = Number(1, 'f1', 'const')
 f2 = Number(1.1, 'f2', 'const')
 f3 = Number(1.2, 'f3', 'const')
 f4 = Number(1.3, 'f4', 'const')
+
+
 y = Number(10, 'y')
+
+t = a * a
 
 temp = y - (f1*a + f2*b + f3*c + f4*d + e)
 cost = temp * temp
-
 core = NumberFlowCore(cost)
 
 # build the topological order. Ignore it is fine. Just want to copy tensorflow
