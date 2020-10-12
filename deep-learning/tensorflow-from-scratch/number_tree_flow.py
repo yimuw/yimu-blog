@@ -1,17 +1,8 @@
 import math
 from collections import defaultdict
 import numbers
-
-
-class GlobalVars:
-    def __init__(self):
-        self.operators = []
-        self.number_idx = 0
-        self.plus_idx = 0
-        self.mul_idx = 0
-
-
-GLOBAL_VARS = GlobalVars()
+import numpy as np
+import utils
 
 
 class Node:
@@ -38,7 +29,7 @@ class Number(Node):
         if isinstance(other, numbers.Number):
             other = Number(value=other, ntype='const')
         plus = Plus(self, other)
-        GLOBAL_VARS.operators.append(plus)
+        # GLOBAL_VARS.operators.append(plus)
 
         self.parents.append(plus)
         other.parents.append(plus)
@@ -50,7 +41,6 @@ class Number(Node):
             other = Number(value=other, ntype='const')
         return other + self
 
-
     def __sub__(self, other):
         if isinstance(other, numbers.Number):
             other = Number(value=other, ntype='const')
@@ -59,20 +49,20 @@ class Number(Node):
 
     def __rsub__(self, other):
         if isinstance(other, numbers.Number):
-            other = Number(value=other, ntype='const')    
-        return other - self    
+            other = Number(value=other, ntype='const')
+        return other - self
 
     def __mul__(self, other):
         if isinstance(other, numbers.Number):
             other = Number(value=other, ntype='const')
         mul = Mul(self, other)
-        GLOBAL_VARS.operators.append(mul)
+        # GLOBAL_VARS.operators.append(mul)
 
         self.parents.append(mul)
         other.parents.append(mul)
         mul.result.children = [mul]
         return mul.result
-    
+
     def __rmul__(self, other):
         if isinstance(other, numbers.Number):
             other = Number(value=other, ntype='const')
@@ -80,7 +70,7 @@ class Number(Node):
 
     def __neg__(self):
         neg = Neg(self)
-        GLOBAL_VARS.operators.append(neg)
+        # GLOBAL_VARS.operators.append(neg)
 
         self.parents.append(neg)
         neg.result.children = [neg]
@@ -89,6 +79,20 @@ class Number(Node):
     def __str__(self):
         return 'value:{} grad:{} #children:{} #parents:{}'.format(self.value, self.grad, len(self.children),
                                                                   len(self.parents))
+
+
+def ntf_sigmoid(number):
+    sigmoid_operator = Sigmoid(number)
+    number.parents.append(sigmoid_operator)
+    sigmoid_operator.result.children = [sigmoid_operator]
+    return sigmoid_operator.result
+
+
+def ntf_log(number):
+    log_operator = Log(number)
+    number.parents.append(log_operator)
+    log_operator.result.children = [log_operator]
+    return log_operator.result
 
 
 class Operator(Node):
@@ -157,7 +161,47 @@ class Neg(Operator):
         self.result.value = - self.a.value
 
     def backward(self):
-        self.a.grad += - self.result.grad * self.a.value
+        self.a.grad += - self.result.grad
+
+
+class Sigmoid(Operator):
+    def __init__(self, a: Number):
+        super().__init__("sigmoid({})".format(a.id))
+        self.a = a
+        self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
+
+        self.children = [a]
+        self.parents = [self.result]
+
+    def forward(self):
+        if abs(self.a.value) > 50:
+            self.a.value = np.sign(self.a.value) * 50
+        expo = math.exp(self.a.value)
+        #print('expo:', expo, self.a.value, expo / (1 + expo))
+        self.result.value = expo / (1 + expo)
+
+    def backward(self):
+        expo = math.exp(self.a.value)
+        sigmoid = expo / (1 + expo)
+        sigmoid_grad = sigmoid * (1 - sigmoid)
+        self.a.grad += self.result.grad * sigmoid_grad
+
+
+class Log(Operator):
+    def __init__(self, a: Number):
+        super().__init__("log({})".format(a.id))
+        self.a = a
+        self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
+
+        self.children = [a]
+        self.parents = [self.result]
+
+    def forward(self):
+        # utils.traverse_tree(self)
+        self.result.value = math.log(self.a.value)
+
+    def backward(self):
+        self.a.grad += self.result.grad * (1. / self.a.value)
 
 
 class NumberFlowCore:
