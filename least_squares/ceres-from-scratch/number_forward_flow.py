@@ -117,5 +117,5 @@ class ResidualBlock:
         for ridx in range(len(jet_residual)):
             for vidx in range(len(self.jets)):
                 jacobian[ridx, vidx] = jet_residual[ridx].perturb[self.jets[vidx].var_id]
-        residual = [j.value for j in jet_residual]
+        residual = np.array([j.value for j in jet_residual])
         return residual, jacobian
