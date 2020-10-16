@@ -74,6 +74,39 @@ def logistic():
         print(const.id, const.value)
 
 
+def test_chain():
+    theta0 = np.array([Number(value=1., id='t{}'.format(i))
+                        for i in range(2 * 2)]).reshape([2, 2])
+    theta1 = np.array([Number(value=2., id='t{}'.format(i + 10))
+                        for i in range(2 * 2)]).reshape([2, 2])
+    f1 = np.array([3,4.])
+    temp = theta0 @ f1
+    print(temp.shape)
+    pred =  theta1 @ temp
+    cost = pred[0] + pred[1]
+    core = NumberFlowCore(cost)
+
+    # build the topological order. Ignore it is fine. Just want to copy tensorflow
+    with core as graph:
+        for i in range(10):
+            print("cost.val:", cost.value, " iter:", i)
+            print('pred:', pred)
+            # traverse_tree(cost)
+            core.forward()
+            core.clear_grad()
+            core.backward()
+            core.gradient_desent(rate=0.01)
+
+            if cost.value < 1e-8:
+                break
+
+    for var in core.varible_nodes:
+        print(var.id, var.value)
+
+    for const in core.const_nodes:
+        print(const.id, const.value)
 if __name__ == "__main__":
     # linear()
-    logistic()
+    #logistic()
+
+    test_chain()

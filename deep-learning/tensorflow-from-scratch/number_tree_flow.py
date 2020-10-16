@@ -82,18 +82,27 @@ class Number(Node):
 
 
 def ntf_sigmoid(number):
-    sigmoid_operator = Sigmoid(number)
-    number.parents.append(sigmoid_operator)
-    sigmoid_operator.result.children = [sigmoid_operator]
-    return sigmoid_operator.result
+    if isinstance(number, Number):
+        sigmoid_operator = Sigmoid(number)
+        number.parents.append(sigmoid_operator)
+        sigmoid_operator.result.children = [sigmoid_operator]
+        return sigmoid_operator.result
+    else:
+        if abs(number) > 50:
+            number = np.sign(number) * 50
+        expo = math.exp(number)
+        #print('expo:', expo, self.a.value, expo / (1 + expo))
+        return expo / (1 + expo)
 
 
 def ntf_log(number):
-    log_operator = Log(number)
-    number.parents.append(log_operator)
-    log_operator.result.children = [log_operator]
-    return log_operator.result
-
+    if isinstance(number, Number):
+        log_operator = Log(number)
+        number.parents.append(log_operator)
+        log_operator.result.children = [log_operator]
+        return log_operator.result
+    else:
+        return math.log(number)
 
 class Operator(Node):
     def __init__(self, id):
@@ -211,6 +220,12 @@ class NumberFlowCore:
         self.cost_node = cost_node
         self.all_nodes, self.varible_nodes, self.const_nodes = self.__get_all_nodes(
             cost_node)
+
+        # remove duplication
+        self.all_nodes = list(set(self.all_nodes))
+        self.varible_nodes = list(set(self.varible_nodes))
+        self.const_nodes = list(set(self.const_nodes))
+
 
     def __get_all_nodes(self, node):
         allnodes = [node]
