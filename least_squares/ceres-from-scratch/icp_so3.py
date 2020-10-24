@@ -48,8 +48,8 @@ def so3_exp(w):
 
 
 def icp_so3():
-    APPLY_CAUCHY_LOSS = True
-    ADD_WRONG_ASSOCIATION = True
+    APPLY_CAUCHY_LOSS = False
+    ADD_WRONG_ASSOCIATION = False
 
     print('=============== icp_so3 ==============')
     R = euler_angle_to_rotation(0.2, 0.1, 0.3)
@@ -94,19 +94,22 @@ def icp_so3():
     for iter in range(20):
         lhs = np.zeros([6, 6])
         rhs = np.zeros(6)
+        cost = 0
         for src_i, target_i in zip(src, target):
             r, J = ResidualBlock(lambda param: icp_residual_i(
                 param, R_var, src_i, target_i), epsilonWithT_var).evaluate()
             if APPLY_CAUCHY_LOSS:
                 def cauchy_dot(s):
                     return 1 / (1 + s)
-                print(r)
                 cauchy_weigth = cauchy_dot(r.T @ r)
                 lhs += cauchy_weigth * J.T @ J
                 rhs -= cauchy_weigth * J.T @ r
+                cost += math.log(1 + np.linalg.norm(r))
             else:
                 lhs += J.T @ J
                 rhs -= J.T @ r
+                cost += np.linalg.norm(r)
+        print('iter:', iter, 'cost:', cost)
         delta = 0.8 * np.linalg.solve(lhs, rhs)
         R_var = so3_exp(delta[:3]) @ R_var
         epsilonWithT_var[3:] += delta[3:]
