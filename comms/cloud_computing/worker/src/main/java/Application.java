@@ -23,7 +23,7 @@ public class Application implements Watcher {
         server.startServer();
         String currentServerAddress = String.format("http://%s:%d", InetAddress.getLocalHost().getCanonicalHostName(), serverPort);
 
-        // use zookeeper to track address of servers
+        // use zookeeper to track address of server
         serviceRegistry.registerToCluster(currentServerAddress);
 
         application.run();

@@ -4,16 +4,14 @@ import java.util.LinkedList;
 
 public class WorkerStatus {
     public WorkerStatus() {
-        this.processedTask = new LinkedList<String>();
-        this.workerName = "test";
     }
 
-    public WorkerStatus(LinkedList<String> processedTask) {
-        this.processedTask = new LinkedList<String>();
-        this.workerName = "test";
+    public WorkerStatus(String workerName, LinkedList<String> processedTask) {
+        this.processedTask = processedTask;
+        this.workerName = workerName;
     }
-    private String workerName;
-    private LinkedList<String> processedTask;
+    private String workerName = new String();
+    private LinkedList<String> processedTask = new LinkedList<String>();
 
     public String getWorkerName()
     {
