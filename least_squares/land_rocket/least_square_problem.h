@@ -4,7 +4,7 @@
 #include "utils.h"
 #include "residuals.h"
 
-// We can call it: (1) a quatratic cost function
+// We can call it: (1) a quadratic cost function
 //                 (2) a least-square problem
 //                 (3) a factor graph
 //                 (4) log of a gaussian distribution
@@ -105,7 +105,7 @@ struct RocketLandingResiduals
 };
 
 
-RocketLandingResiduals compute_residaul(const Trajectory &trajectory,
+RocketLandingResiduals compute_residual(const Trajectory &trajectory,
                                         const RocketState &start_state,
                                         const Vector8d &weight_start,
                                         const RocketState &end_state,
@@ -178,7 +178,7 @@ struct LinearConstrain1D
 
 struct Constrains
 {
-    bool trajectory_statisfy_constrains(const Trajectory &trajectory) const
+    bool trajectory_satisfy_constrains(const Trajectory &trajectory) const
     {
         for(const auto &s : trajectory.states)
         {
@@ -211,7 +211,7 @@ struct Constrains
 
     std::vector<LinearConstrain1D> linear_constrains;
 
-    // Rocket shoudn't hit ground
+    // Rocket shouldn't hit ground
     double min_position_x = 0.;
     double min_position_y = 0.;
 
@@ -230,8 +230,8 @@ struct Config
         weight_end   << 1e4, 1e3, 1e3, 1e3, 1e3, 1e4, 1e4, 1e4;
     }
 
-    // "sparse", "structural", "ddp_unconstrain"
-    std::string solve_type = "ddp_unconstrain";
+    // "sparse", "structural", "ddp_unconstrained"
+    std::string solve_type = "ddp_unconstrained";
 
     uint32_t iterations = 20;
 
@@ -253,7 +253,7 @@ struct RocketLandingProblem
         assert(config.num_states >= 2);
 
         constrains.update_constrains(trajectory);
-        residuals = compute_residaul(trajectory, 
+        residuals = compute_residual(trajectory, 
             start_state, config.weight_start, end_state, config.weight_end, config.num_states);
     }
 

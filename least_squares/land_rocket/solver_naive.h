@@ -17,16 +17,16 @@ public:
     {
         LinearizedResidual(const size_t num_equations, const size_t num_variables)
             : jacobi(MatrixXd::Zero(num_equations, num_variables)),
-              current_residaul(VectorXd::Zero(num_equations)),
+              current_residual(VectorXd::Zero(num_equations)),
               weight(MatrixXd::Zero(num_equations, num_equations))
         {
         }
         
-        // jacobi of residual evaluated at currrent x
+        // jacobi of residual evaluated at current x
         MatrixXd jacobi;
         
-        // residaul evaluated at current x
-        VectorXd current_residaul;
+        // residual evaluated at current x
+        VectorXd current_residual;
         
         // weight matrix for the least square problem
         // e.g. x.T * A.T * W * A * x
@@ -36,7 +36,7 @@ public:
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) = 0;
 
 protected:
-    virtual VectorXd solve_normal_eqution(NormalEqution &quadratic) = 0;
+    virtual VectorXd solve_normal_equation(NormalEquation &quadratic) = 0;
 };
 
 
@@ -48,9 +48,9 @@ public:
     {
         ScopeProfiler p("DenseSolver:solver_rocket_landing_least_squares");
         const LinearizedResidual linearized_residuals = linearized_residual_function(residual);
-        NormalEqution normal_equ = linear_function_to_normal_equation(linearized_residuals);
+        NormalEquation normal_equ = linear_function_to_normal_equation(linearized_residuals);
         apply_regularization_to_hessian(residual, normal_equ);
-        return solve_normal_eqution(normal_equ);
+        return solve_normal_equation(normal_equ);
     }
 
 protected:
@@ -64,7 +64,7 @@ protected:
                             residual.residual_size(), residual.variable_size()) 
                         = residual.jacobian();
 
-        equ.current_residaul.segment(residual_idx, residual.residual_size()) = residual.residual();
+        equ.current_residual.segment(residual_idx, residual.residual_size()) = residual.residual();
         equ.weight.block(residual_idx, residual_idx, residual.residual_size(), residual.residual_size())
             = residual.weight();
 
@@ -88,9 +88,9 @@ protected:
 
         int residual_idx = 0;
 
-        // Note: Order of residaul matters!
+        // Note: Order of residual matters!
         //       Handing order explicitly.
-        //       We want A to be "close to" diagnal. 
+        //       We want A to be "close to" diagonal. 
 
         // start state
         add_residual(residual.start_state_prior, residual_idx, equ);
@@ -114,7 +114,7 @@ protected:
     //            grad_of_cost = A^T b + 2 * x
     void apply_regularization_to_hessian(
                         const RocketLandingResiduals &residual,
-                        NormalEqution &normal_equation)
+                        NormalEquation &normal_equation)
     {
         if(verbose_)  std::cout << "computing regularization..." << std::endl;
 
@@ -159,7 +159,7 @@ protected:
     //        A.t * W * A * x = - A.t * W.t * b
     // Since most of W are sysmatic PSD
     //       A.t * W * A * x = - A.t * W * b
-    NormalEqution linear_function_to_normal_equation(const LinearizedResidual &equ)
+    NormalEquation linear_function_to_normal_equation(const LinearizedResidual &equ)
     {
         ScopeProfiler p("linear_function_to_normal_equation");
         const int num_variables = equ.jacobi.cols();
@@ -169,7 +169,7 @@ protected:
             << "," << equ.jacobi.cols() << std::endl;
 
         if(verbose_) std::cout << "A * weight ..." << std::endl;
-        // A.t * W, when W is diagnal
+        // A.t * W, when W is diagonal
         MatrixXd At_times_W = equ.jacobi.transpose();
         for(int col = 0; col < At_times_W.cols(); ++col)
         {
@@ -177,18 +177,18 @@ protected:
             At_times_W.col(col) *= w;
         }
 
-        NormalEqution normal_equ(num_variables);
+        NormalEquation normal_equ(num_variables);
         normal_equ.lhs = At_times_W * equ.jacobi;
-        normal_equ.rhs = - At_times_W * equ.current_residaul;
+        normal_equ.rhs = - At_times_W * equ.current_residual;
 
         if(false) PythonmatplotVisualizer().spy_matrix(normal_equ.lhs);
 
         return normal_equ;
     }
 
-    virtual VectorXd solve_normal_eqution(NormalEqution &quadratic)
+    virtual VectorXd solve_normal_equation(NormalEquation &quadratic)
     {
-        ScopeProfiler p("solve_normal_eqution eigen");
+        ScopeProfiler p("solve_normal_equation eigen");
         auto &lhs = quadratic.lhs;
         auto &rhs = quadratic.rhs;
 

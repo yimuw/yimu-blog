@@ -17,10 +17,10 @@ public:
     {
         ScopeProfiler p("DenseSolverUpdateInPlace:solver_rocket_landing_least_squares");
 
-        NormalEqution normal_equ(residual.total_variable_size());
+        NormalEquation normal_equ(residual.total_variable_size());
         residual_function_to_normal_equation(residual, normal_equ);
         apply_regularization_to_hessian(residual, normal_equ);
-        return solve_normal_eqution(normal_equ);
+        return solve_normal_equation(normal_equ);
     }
 
 protected:
@@ -29,12 +29,12 @@ protected:
     // cost(x1, x2) = ||Ax1 + b||^2 + ||Ax2 + b||^2
     void add_residual_direct_update(const Residual &residual,
                                     int &residual_idx,
-                                    NormalEqution &equ)
+                                    NormalEquation &equ)
     {
         const MatrixXd jacobi = residual.jacobian();
         const MatrixXd weight = residual.weight();
         MatrixXd jtw = jacobi.transpose();
-        if(residual.is_diagnal_weight())
+        if(residual.is_diagonal_weight())
         {
             for(int c = 0; c < jtw.cols(); ++c)
             {
@@ -65,7 +65,7 @@ protected:
     }
 
     void residual_function_to_normal_equation(const RocketLandingResiduals &residual,
-                                                       NormalEqution &normal_equ)
+                                                       NormalEquation &normal_equ)
     {
         ScopeProfiler p("residual_function_to_normal_equation");
 
@@ -79,9 +79,9 @@ protected:
 
         int residual_idx = 0;
 
-        // Note: Order of residaul matters!
+        // Note: Order of residual matters!
         //       Handing order explicitly.
-        //       We want A to be "close to" diagnal. 
+        //       We want A to be "close to" diagonal. 
 
         // start state
         add_residual_direct_update(residual.start_state_prior, residual_idx, normal_equ);

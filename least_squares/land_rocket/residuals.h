@@ -3,7 +3,7 @@
 #include "types.h"
 
 
-constexpr double GRAVITY = 0.;
+constexpr double GRAVITY = 1.;
 
 struct RocketMotionModel
 {
@@ -86,7 +86,7 @@ struct Residual
 
     virtual MatrixXd weight() const = 0;
 
-    virtual bool is_diagnal_weight() const = 0;
+    virtual bool is_diagonal_weight() const = 0;
 
     virtual VectorXd residual() const = 0;
 
@@ -176,7 +176,7 @@ struct MotionResidual : public Residual
         return weight;
     }
 
-    bool is_diagnal_weight() const override
+    bool is_diagonal_weight() const override
     {
         return true;
     }
@@ -225,7 +225,7 @@ struct PriorResidual : public Residual
         return weight_mat;
     }
 
-    bool is_diagnal_weight() const override
+    bool is_diagonal_weight() const override
     {
         return true;
     }

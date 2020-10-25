@@ -34,8 +34,13 @@ public:
             auto primal_dual_solver = RocketLandingSolver_PrimalDualInteriorPointStructural();
             primal_dual_solver.solver_rocket_landing_constrained_least_squares(config_, problem_);
         }
-        else if(config_.solve_type == "ddp_unconstrain")
+        else if(config_.solve_type == "ddp_unconstrained")
         {
+            bool GOOD_INIT = true;
+            if (GOOD_INIT) {
+                auto primal_dual_solver = RocketLandingSolver_PrimalDualInteriorPointStructural();
+                primal_dual_solver.solver_rocket_landing_constrained_least_squares(config_, problem_);
+            }
             auto ddp_solver = DifferentialDynamicProgramming();
             ddp_solver.solve(problem_);
         }

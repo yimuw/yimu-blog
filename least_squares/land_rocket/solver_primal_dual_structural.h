@@ -39,7 +39,7 @@ lhs.block( (num_state_rows) * state_size_, (num_state_cols) * state_size_, state
 #define GET_VECTOR_STATE_BLOCK(rhs, num_state_rows) \
 rhs.block( (num_state_rows) * state_size_, 0, state_size_, 1)
 
-    VectorXd solve(const NormalEqution &normal_equ, 
+    VectorXd solve(const NormalEquation &normal_equ, 
                     const int state_size,
                     const int num_states)
     {
@@ -105,7 +105,7 @@ private:
 class RocketLandingSolver_PrimalDualInteriorPointStructural 
     : public RocketLandingSolver_PrimalDualInteriorPoint
 {
-    virtual VectorXd solve_normal_eqution(NormalEqution &normal_equ) override
+    virtual VectorXd solve_normal_equation(NormalEquation &normal_equ) override
     {
         const int augmented_state_size = normal_equ.rhs.rows() / num_states_;
         VectorXd delta = BlockDiagonalSolver().solve(normal_equ, augmented_state_size, num_states_);
@@ -113,7 +113,7 @@ class RocketLandingSolver_PrimalDualInteriorPointStructural
         constexpr bool TEST_SOLVER = false;
         if(TEST_SOLVER)
         {
-            VectorXd delta_regression = SparseSolver::solve_normal_eqution(normal_equ);
+            VectorXd delta_regression = SparseSolver::solve_normal_equation(normal_equ);
             assert((delta_regression - delta).squaredNorm() < 1e-8 && "BlockDiagonalSolver failure");
         }
         delta = permute_delta(delta);
@@ -156,7 +156,7 @@ class RocketLandingSolver_PrimalDualInteriorPointStructural
                                                 const VectorXd &dual_variables, 
                                                 const Constrains &constrains,
                                                 const double k_relax_complementary_slackness,
-                                                NormalEqution &augmented_normal_equ) override
+                                                NormalEquation &augmented_normal_equ) override
     {
         ScopeProfiler p("construct_primal_dual_problem_strutural");
 

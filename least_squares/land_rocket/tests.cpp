@@ -107,7 +107,7 @@ struct TEST_RocketLandingSolver_PrimalDualInteriorPoint : public RocketLandingSo
 
         auto compute_cost = [&](const Trajectory &t)
         {
-            auto residuals = compute_residaul(t, 
+            auto residuals = compute_residual(t, 
                 problem.start_state, config.weight_start, problem.end_state, 
                 config.weight_end, config.num_states);
             return residuals.total_cost();
@@ -128,7 +128,7 @@ struct TEST_RocketLandingSolver_PrimalDualInteriorPoint : public RocketLandingSo
             }
         }
 
-        NormalEqution normal_equ(problem.residuals.total_variable_size());
+        NormalEquation normal_equ(problem.residuals.total_variable_size());
         residual_function_to_normal_equation(problem.residuals, normal_equ);
         VectorXd cost_grad_analytic = compute_cost_gradient(normal_equ, problem.trajectory, problem.residuals);
         PRINT_NAME_VAR(problem.residuals.total_cost());

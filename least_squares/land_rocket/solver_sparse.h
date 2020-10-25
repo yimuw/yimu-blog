@@ -21,27 +21,27 @@ public:
     virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
     {
         ScopeProfiler p("SparseSolver:solver_rocket_landing_least_squares");
-        NormalEqution normal_equ(residual.total_variable_size());
+        NormalEquation normal_equ(residual.total_variable_size());
         residual_function_to_normal_equation(residual, normal_equ);
         apply_regularization_to_hessian(residual, normal_equ);
         if(false) PythonmatplotVisualizer().spy_matrix(normal_equ.lhs);
-        return solve_normal_eqution(normal_equ);
+        return solve_normal_equation(normal_equ);
     }
 
 protected:
-    virtual VectorXd solve_normal_eqution(NormalEqution &normal_equ) override
+    virtual VectorXd solve_normal_equation(NormalEquation &normal_equ) override
     {
         ScopeProfiler p("solve_normal_equation");
 #ifdef CHOLMOD_SUPPORT
         // Cholesky for A.T * A system
-        return solve_normal_eqution_sparse<Eigen::CholmodSupernodalLLT<Eigen::SparseMatrix<double>>>(normal_equ);
+        return solve_normal_equation_sparse<Eigen::CholmodSupernodalLLT<Eigen::SparseMatrix<double>>>(normal_equ);
 #else
-        return solve_normal_eqution_sparse<Eigen::SparseLU<Eigen::SparseMatrix<double>>>(normal_equ);
+        return solve_normal_equation_sparse<Eigen::SparseLU<Eigen::SparseMatrix<double>>>(normal_equ);
 #endif
     }
 
     template<typename SOLVE_TYPE>
-    VectorXd solve_normal_eqution_sparse(NormalEqution &normal_equ)
+    VectorXd solve_normal_equation_sparse(NormalEquation &normal_equ)
     {
         if(verbose_) std::cout << "Creating SparseView..." << std::endl;
         

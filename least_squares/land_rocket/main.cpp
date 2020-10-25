@@ -16,11 +16,18 @@ int main(int argc, char *argv[])
     // RocketState end_state  (0.1, 0., 10., 0., 0., M_PI / 2.,  0., 0.);
 
     int steps = 50;
-    RocketState start_state(0.1, 0., 0., 0., 0., M_PI / 2., 0., 0);
-    RocketState end_state  (0.1, 10., 10., 0., 0., 0.,  0., 0.);
-
-
+    RocketState start_state(0.1, 0., 0., 0., 0., M_PI / 4., 0., 0);
+    RocketState end_state  (0.1, 10., 10., 0., 0., M_PI / 2.,  0., 0.);
     RocketLandingPlanner rocket_landing(start_state, end_state, steps);
+
+    if (argc > 1) {
+        std::string solver_type = argv[1];
+        if (solver_type == "s") rocket_landing.config_.solve_type = "sparse";
+        else if (solver_type == "t") rocket_landing.config_.solve_type = "structural";
+        else if (solver_type == "d") rocket_landing.config_.solve_type = "ddp_unconstrained";
+    }
+    std::cout << "solver type :" << rocket_landing.config_.solve_type << std::endl;
+
     {
         ScopeProfiler p("solve");
         rocket_landing.solve();

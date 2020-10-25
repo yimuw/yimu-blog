@@ -160,11 +160,11 @@ struct Trajectory
     std::vector<RocketState> states;
 };
 
-struct NormalEqution
+struct NormalEquation
 {
-    NormalEqution() = default;
+    NormalEquation() = default;
 
-    NormalEqution(const size_t num_variables)
+    NormalEquation(const size_t num_variables)
         : lhs(MatrixXd::Zero(num_variables, num_variables)),
             rhs(VectorXd::Zero(num_variables))
     {

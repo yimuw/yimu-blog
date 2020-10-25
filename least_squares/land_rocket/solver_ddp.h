@@ -52,6 +52,7 @@ struct DDPStates {
     }
 
     int num_states = 0;
+    std::vector<double> dts;
     std::vector<Control> controls;
     std::vector<State> states;
     std::vector<FeedbackLaw> feedbacks;
@@ -60,11 +61,12 @@ struct DDPStates {
     State target_state;
 };
 
-inline RocketState ddp_vars_to_rocket_state(const State& x, const Control& u)
+inline RocketState ddp_vars_to_rocket_state(const State& x, const Control& u, const double dt)
 {
     RocketState rstate;
     rstate.cntl_state() = u;
     rstate.lcn_state() = x;
+    rstate.delta_time() = dt;
     return rstate;
 }
 
@@ -73,7 +75,7 @@ public:
     void solve(RocketLandingProblem& problem)
     {
         DDPStates ddp_states = initialize_ddp_state(problem);
-        for (int iteration = 0; iteration < 10; ++iteration) {
+        for (int iteration = 0; iteration < 50; ++iteration) {
             forward_pass(ddp_states);
             backward_pass(ddp_states);
             apply_control_law(ddp_states);
@@ -88,7 +90,12 @@ private:
         DDPStates ddp_states;
         ddp_states.num_states = problem.trajectory.states.size();
         num_states_ = ddp_states.num_states;
-        ddp_states.init_state = problem.start_state.lcn_state();
+        std::cout << "ddp_states.num_states: " << ddp_states.num_states << std::endl;
+
+        // ddp_states.init_state = problem.start_state.lcn_state();
+        // assuming we have a precomputed init state
+        ddp_states.init_state = problem.trajectory.states.at(0).lcn_state();
+        
         ddp_states.target_state = problem.end_state.lcn_state();
 
         PRINT_NAME_VAR(ddp_states.num_states);
@@ -98,13 +105,11 @@ private:
         ddp_states.states.resize(ddp_states.num_states);
         ddp_states.controls.resize(ddp_states.num_states - 1);
         ddp_states.feedbacks.resize(ddp_states.num_states - 1);
-
-        for (int i = 0; i < ddp_states.num_states; ++i) {
-            ddp_states.states.at(i) = problem.trajectory.states.at(i).lcn_state();
-        }
+        ddp_states.dts.resize(ddp_states.num_states - 1);
 
         for (int i = 0; i < ddp_states.num_states - 1; ++i) {
             ddp_states.controls.at(i) = problem.trajectory.states.at(i).cntl_state();
+            ddp_states.dts.at(i) = problem.trajectory.states.at(i).delta_time();
         }
 
         return ddp_states;
@@ -131,12 +136,14 @@ private:
         RocketMotionModel motion_model;
         for (int i = 0; i < ddp_states.num_states - 1; ++i) {
             RocketState current_full_state = ddp_vars_to_rocket_state(
-                ddp_states.states.at(i), ddp_states.controls.at(i));
+                ddp_states.states.at(i), ddp_states.controls.at(i), ddp_states.dts.at(i));
+            
 
             RocketState next_full_state = motion_model.motion(current_full_state);
             ddp_states.states.at(i + 1) = next_full_state.lcn_state();
 
             std::cout << "idx forward iter: " << i << std::endl;
+            std::cout << "all states:" << current_full_state.variables.transpose() << std::endl;
             std::cout << "control: " << ddp_states.controls.at(i).transpose() << std::endl;
             std::cout << "state: " << ddp_states.states.at(i).transpose() << std::endl;
             std::cout << "next state: " << ddp_states.states.at(i + 1).transpose() << std::endl;
@@ -153,13 +160,16 @@ private:
         for (int i = ddp_states.num_states - 2; i >= 0; --i) {
             const State cur_state = ddp_states.states.at(i);
             const Control cur_control = ddp_states.controls.at(i);
+            const double cur_dt = ddp_states.dts.at(i);
 
-            solve_backward_subproblem(cur_state, cur_control, marginal_cost, ddp_states.feedbacks[i]);
+            solve_backward_subproblem(cur_state, cur_control, cur_dt, 
+                marginal_cost, ddp_states.feedbacks[i]);
         }
     }
 
     void solve_backward_subproblem(const State& cur_state,
         const Control& cur_control,
+        const double& cur_dt,
         QuadraticCost& marginal_cost,
         FeedbackLaw& feedback_law)
     {
@@ -168,7 +178,7 @@ private:
 
         MatrixXd lhs;
         VectorXd rhs;
-        compute_backward_subproblem_normal_equation(marginal_cost, cur_state, cur_control, lhs, rhs);
+        compute_backward_subproblem_normal_equation(marginal_cost, cur_state, cur_control, cur_dt, lhs, rhs);
 
         MatrixXd A1 = lhs.block(0, 0, state_size, state_size);
         MatrixXd A2 = lhs.block(0, state_size, state_size, control_size);
@@ -196,6 +206,7 @@ private:
     void compute_backward_subproblem_normal_equation(const QuadraticCost& marginal_cost,
         const State& cur_state,
         const Control& cur_control,
+        const double& dt,
         MatrixXd& lhs,
         VectorXd& rhs)
     {
@@ -204,7 +215,7 @@ private:
         const int total_size = state_size + control_size;
 
         RocketMotionModel motion_model;
-        const RocketState rstate = ddp_vars_to_rocket_state(cur_state, cur_control);
+        const RocketState rstate = ddp_vars_to_rocket_state(cur_state, cur_control, dt);
 
         const MatrixXd jacobi_wrt_augment_state = motion_model.jacobian_wrt_state(rstate);
         MatrixXd jacobian_marginal_cost = jacobi_wrt_augment_state.block(0, 0, state_size, total_size);
@@ -249,11 +260,11 @@ private:
     {
         std::vector<Control> new_controls = ddp_states.controls;
         std::vector<State> new_states = ddp_states.states;
+        const std::vector<double> &dts = ddp_states.dts;
         RocketMotionModel motion_model;
 
         double shooting_cost = std::numeric_limits<double>::max();
 
-        PRINT_NAME_VAR(shooting_cost);
         PRINT_NAME_VAR(current_best_cost_);
 
         // DDP is HARD to converge!
@@ -272,7 +283,7 @@ private:
 
                 new_controls.at(i) = ddp_states.controls.at(i) + step * delta_control;
 
-                const RocketState new_rstate = ddp_vars_to_rocket_state(new_states.at(i), new_controls.at(i));
+                const RocketState new_rstate = ddp_vars_to_rocket_state(new_states.at(i), new_controls.at(i), dts.at(i));
                 new_states.at(i + 1) = motion_model.motion(new_rstate).lcn_state();
 
                 std::cout << "new_control: " << new_controls.at(i).transpose() << std::endl;
