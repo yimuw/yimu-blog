@@ -13,9 +13,6 @@ class DPPstate:
 
     def compute_q(self, state, control):
         dynamic = Dynamic()
-        # predict_x = dynamic.f_function(state, control)
-        # print('state, control:', state, control)
-        # print('predict_x:', predict_x)
 
         dynamic_jacobi_wrt_state = dynamic.jacobi_wrt_state(state, control)
         dynamic_jacobi_wrt_control = dynamic.jacobi_wrt_controls(
