@@ -5,7 +5,7 @@ from collections import deque
 
 class Vistable(ABC):
     @abstractmethod
-    def visit(self):
+    def visit(self, visitor):
         pass
 
 

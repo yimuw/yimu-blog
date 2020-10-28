@@ -59,25 +59,3 @@ class BinLoader(visitor_ref.VisitorBase):
         pass
 
 
-if __name__ == "__main__":
-    # dump the body of b
-    b1 = TypeB()
-    jsonDump = BinDumper()
-    jsonDump.visit('no-name', b1)
-    print(jsonDump.result)
-
-    # b2 with no values
-    b2 = TypeB()
-    b2.b1 = RefObj(None)
-    b2.instance_of_A.a = RefObj(None)
-    b2.instance_of_A.b = RefObj(None)
-    b2.instance_of_A.c = []
-
-    # deserialize b dump into b2
-    loader = BinLoader(jsonDump.result)
-    loader.visit('no-name', b2)
-
-    # check the dump of b2
-    jsonDump = BinDumper()
-    jsonDump.visit('no-name', b2)
-    print(jsonDump.result)
