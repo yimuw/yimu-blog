@@ -153,21 +153,3 @@ if __name__ == "__main__":
     jsonDump = JsonDump()
     jsonDump.visit('no-name', b)
     print(jsonDump.result)
-
-    #json_read = json.loads(jsonDump.result)
-    #print(json.dumps(json_read, indent=2))
-
-    loader = JsonLoad(jsonDump.result)
-
-    b2 = B()
-    b2.b1 = 1
-    b2.instance_of_A.a = "na"
-    b2.instance_of_A.b = "na"
-    b2.instance_of_A.c = []
-
-    loader.visit('no-name', b2)
-
-    jsonDump = JsonDump()
-    jsonDump.visit('no-name', b2)
-    print(jsonDump.result)
-
