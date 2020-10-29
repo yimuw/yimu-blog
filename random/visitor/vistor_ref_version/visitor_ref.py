@@ -8,12 +8,12 @@ class RefObj:
         self.val = val
 
 
-class Vistable(ABC):
+class Traversable(ABC):
     def __init__(self):
         self.version = RefObj(1)
 
     @abstractmethod
-    def visit(self, visitor):
+    def traverse(self, visitor):
         visitor.visit('version', self.version)
 
 
@@ -47,9 +47,9 @@ class VisitorBase(ABC):
             for e in obj:
                 self.visit('no-name', e)
             self.on_leave_list()
-        elif isinstance(obj, Vistable):
+        elif isinstance(obj, Traversable):
             self.on_enter_level(name)
-            obj.visit(self)
+            obj.traverse(self)
             self.on_leave_level()
         elif isinstance(obj, RefObj):
             self.on_leaf(name, obj)

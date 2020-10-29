@@ -3,30 +3,30 @@ import json
 from collections import deque
 
 
-class Vistable(ABC):
+class Traversable(ABC):
     @abstractmethod
-    def visit(self):
+    def traverse(self):
         pass
 
 
-class A(Vistable):
+class A(Traversable):
     def __init__(self):
         self.a = 1
         self.b = "whatever"
         self.c = [1, 2, 3]
 
-    def visit(self, visitor):
+    def traverse(self, visitor):
         visitor.visit('a', self.a)
         visitor.visit('b', self.b)
         visitor.visit('c', self.c)
 
 
-class B(Vistable):
+class B(Traversable):
     def __init__(self):
         self.b1 = 100
         self.instance_of_A = A()
 
-    def visit(self, visitor):
+    def traverse(self, visitor):
         visitor.visit('b1', self.b1)
         visitor.visit('instance_of_A', self.instance_of_A)
 
@@ -61,9 +61,9 @@ class VisitorBase(ABC):
             for e in obj:
                 self.visit('no-name', e)
             self.on_leave_list()
-        elif isinstance(obj, Vistable):
+        elif isinstance(obj, Traversable):
             self.on_enter_level(name)
-            obj.visit(self)
+            obj.traverse(self)
             self.on_leave_level()
         else:
             self.on_leaf(name, obj)

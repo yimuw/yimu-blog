@@ -1,26 +1,26 @@
 from json_visitor import JsonDumper, JsonLoader
 from binary_visitor import BinDumper, BinLoader
-from visitor_ref import RefObj, Vistable
+from visitor_ref import RefObj, Traversable
 
 
-class TypeA(Vistable):
+class TypeA(Traversable):
     def __init__(self):
         self.a = RefObj(1)
         self.b = RefObj("whatever")
         self.c = [RefObj(1), RefObj(-1), RefObj(2.2)]
 
-    def visit(self, visitor):
+    def traverse(self, visitor):
         visitor.visit('a', self.a)
         visitor.visit('b', self.b)
         visitor.visit('c', self.c)
 
 
-class TypeB(Vistable):
+class TypeB(Traversable):
     def __init__(self):
         self.b1 = RefObj(123)
         self.instance_of_A = TypeA()
 
-    def visit(self, visitor):
+    def traverse(self, visitor):
         visitor.visit('b1', self.b1)
         visitor.visit('instance_of_A', self.instance_of_A)
 
