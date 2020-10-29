@@ -14,13 +14,13 @@ class JsonDumper(visitor_ref.VisitorBase):
     def on_leaf(self, name, obj):
         obj_str = str(obj.val) if not isinstance(
             obj.val, str) else '"{}"'.format(obj.val)
-        if name == 'no-name':
+        if name == None:
             self.result += ' ' * self.level + obj_str + ',\n'
         else:
             self.result += ' ' * self.level + '"' + name + '"' + ':' + obj_str + ',\n'
 
     def on_enter_level(self, name):
-        if name == 'no-name':
+        if name == None:
             self.result += ' ' * self.level + '{\n'
         else:
             self.result += ' ' * self.level + '"' + name + '"' + ':' + '{\n'
@@ -31,7 +31,7 @@ class JsonDumper(visitor_ref.VisitorBase):
         self.result += ' ' * self.level + '}\n'
 
     def on_enter_list(self, name, obj):
-        if name == 'no-name':
+        if name == None:
             self.result += ' ' * self.level + '[ \n'
         else:
             self.result += ' ' * self.level + '"' + name + '"' + ':' + '[ \n'

@@ -42,7 +42,7 @@ class VisitorBase(ABC):
         if isinstance(obj, list):
             self.on_enter_list(name, obj)
             for e in obj:
-                self.visit('no-name', e)
+                self.visit(None, e)
             self.on_leave_list()
         elif isinstance(obj, Traversable):
             self.on_enter_level(name)

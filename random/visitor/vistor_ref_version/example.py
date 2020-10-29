@@ -42,7 +42,7 @@ def json_example():
     b1 = TypeB()
     b1.instance_of_A.version = RefObj(1)
     json_dumper = JsonDumper()
-    json_dumper.visit('no-name', b1)
+    json_dumper.visit('b1', b1)
     print('b1 dump:', json_dumper.result, sep='\n')
     b1_dump = json_dumper.result
 
@@ -53,16 +53,16 @@ def json_example():
     b2.instance_of_A.b = RefObj(None)
     b2.instance_of_A.c = []
     json_dumper = JsonDumper()
-    json_dumper.visit('no-name', b2)
+    json_dumper.visit('b2', b2)
     print('b2 dump:', json_dumper.result, sep='\n')
 
     # deserialize b dump into b2
     loader = JsonLoader(b1_dump)
-    loader.visit('no-name', b2)
+    loader.visit('b2', b2)
     
     # check the dump of b2
     json_dumper = JsonDumper()
-    json_dumper.visit('no-name', b2)
+    json_dumper.visit('b2', b2)
     print('b2 dump after load b1:', json_dumper.result, sep='\n')
 
 

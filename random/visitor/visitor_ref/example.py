@@ -30,7 +30,7 @@ def binary_example():
     # dump the body of b
     b1 = TypeB()
     json_dumper = JsonDumper()
-    json_dumper.visit('no-name', b1)
+    json_dumper.visit('b1', b1)
     print('b1 dump:', json_dumper.result, sep='\n')
     b1_dump = json_dumper.result
 
@@ -41,16 +41,16 @@ def binary_example():
     b2.instance_of_A.b = RefObj(None)
     b2.instance_of_A.c = []
     json_dumper = JsonDumper()
-    json_dumper.visit('no-name', b2)
+    json_dumper.visit('b2', b2)
     print('b2 dump:', json_dumper.result, sep='\n')
 
     # deserialize b dump into b2
     loader = JsonLoader(b1_dump)
-    loader.visit('no-name', b2)
+    loader.visit('b2', b2)
     
     # check the dump of b2
     json_dumper = JsonDumper()
-    json_dumper.visit('no-name', b2)
+    json_dumper.visit('b2', b2)
     print('b2 dump after load b1:', json_dumper.result, sep='\n')
 
 
@@ -59,7 +59,7 @@ def json_example():
     # dump the body of b
     b1 = TypeB()
     bin_dumper = BinDumper()
-    bin_dumper.visit('no-name', b1)
+    bin_dumper.visit('b1', b1)
     print('b1 dump:', bin_dumper.result, sep='\n')
     b1_dump = bin_dumper.result
 
@@ -70,16 +70,16 @@ def json_example():
     b2.instance_of_A.b = RefObj(None)
     b2.instance_of_A.c = []
     bin_dumper = BinDumper()
-    bin_dumper.visit('no-name', b2)
+    bin_dumper.visit('b2', b2)
     print('b2 dump:', bin_dumper.result, sep='\n')
 
     # deserialize b dump into b2
     loader = BinLoader(b1_dump)
-    loader.visit('no-name', b2)
+    loader.visit('b2', b2)
 
     # check the dump of b2
     jsonDump = BinDumper()
-    jsonDump.visit('no-name', b2)
+    jsonDump.visit('b2', b2)
     print('b2 dump after load b1:', jsonDump.result, sep='\n')
 
 

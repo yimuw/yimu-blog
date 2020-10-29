@@ -59,7 +59,7 @@ class VisitorBase(ABC):
         if isinstance(obj, list):
             self.on_enter_list(name, obj)
             for e in obj:
-                self.visit('no-name', e)
+                self.visit(name = None, obj = e)
             self.on_leave_list()
         elif isinstance(obj, Traversable):
             self.on_enter_level(name)
@@ -77,13 +77,13 @@ class JsonDump(VisitorBase):
 
     def on_leaf(self, name, obj):
         obj_str = str(obj) if not isinstance(obj, str) else '"{}"'.format(obj)
-        if name == 'no-name':
+        if name == None:
             self.result += ' ' * self.level + obj_str + ',\n'
         else:
             self.result += ' ' * self.level + '"' + name + '"' + ':' + obj_str + ',\n'
 
     def on_enter_level(self, name):
-        if name == 'no-name':
+        if name == None:
             self.result += ' ' * self.level + '{\n'
         else:
             self.result += ' ' * self.level + '"' + name + '"' + ':' + '{\n'
@@ -94,7 +94,7 @@ class JsonDump(VisitorBase):
         self.result += ' ' * self.level + '}\n'
 
     def on_enter_list(self, name, obj):
-        if name == 'no-name':
+        if name == None:
             self.result += ' ' * self.level + '[\n'
         else:
             self.result += ' ' * self.level + '"' + name + '"' + ':' + '[\n'
@@ -151,5 +151,5 @@ if __name__ == "__main__":
     b = B()
 
     jsonDump = JsonDump()
-    jsonDump.visit('no-name', b)
+    jsonDump.visit('obj_b', b)
     print(jsonDump.result)
