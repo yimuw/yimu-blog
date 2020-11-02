@@ -48,8 +48,8 @@ def so3_exp(w):
 
 
 def icp_so3():
-    APPLY_CAUCHY_LOSS = False
-    ADD_WRONG_ASSOCIATION = False
+    APPLY_CAUCHY_LOSS = True
+    ADD_WRONG_ASSOCIATION = True
 
     print('=============== icp_so3 ==============')
     R = euler_angle_to_rotation(0.2, 0.1, 0.3)

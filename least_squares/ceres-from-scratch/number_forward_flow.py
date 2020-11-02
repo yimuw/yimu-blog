@@ -8,15 +8,15 @@ import numbers
 class JetMapImpl:
     def __init__(self, value, var_id=None):
         self.value = value
-        self.perturb = defaultdict(float)
+        self.derivative_wrt_variables = defaultdict(float)
         self.var_id = var_id
         if var_id is not None:
-            self.perturb = {var_id: 1.}
+            self.derivative_wrt_variables = {var_id: 1.}
 
     def __repr__(self):
         s = 'value:' + str(self.value) + ' '
-        for p in self.perturb:
-            s += 'id:' + str(p) + ' :' + str(self.perturb[p]) + ' '
+        for p in self.derivative_wrt_variables:
+            s += 'id:' + str(p) + ' :' + str(self.derivative_wrt_variables[p]) + ' '
         return s
 
     def __add__(self, other):
@@ -24,12 +24,12 @@ class JetMapImpl:
             other = JetMapImpl(other)
 
         ret = JetMapImpl(value=self.value + other.value)
-        ret.perturb = defaultdict(float)
+        ret.derivative_wrt_variables = defaultdict(float)
 
-        for var in self.perturb:
-            ret.perturb[var] += self.perturb[var]
-        for var in other.perturb:
-            ret.perturb[var] += other.perturb[var]
+        for var in self.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] += self.derivative_wrt_variables[var]
+        for var in other.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] += other.derivative_wrt_variables[var]
         return ret
 
     def __radd__(self, other):
@@ -43,13 +43,13 @@ class JetMapImpl:
             other = JetMapImpl(other)
 
         ret = JetMapImpl(value=self.value * other.value)
-        ret.perturb = defaultdict(float)
+        ret.derivative_wrt_variables = defaultdict(float)
 
-        for var in self.perturb:
-            ret.perturb[var] += self.perturb[var] * other.value
+        for var in self.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] += self.derivative_wrt_variables[var] * other.value
 
-        for var in other.perturb:
-            ret.perturb[var] += self.value * other.perturb[var]
+        for var in other.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] += self.value * other.derivative_wrt_variables[var]
         return ret
 
     def __rmul__(self, other):
@@ -63,18 +63,18 @@ class JetMapImpl:
             other = JetMapImpl(other)
 
         ret = JetMapImpl(value=self.value - other.value)
-        ret.perturb = defaultdict(float)
+        ret.derivative_wrt_variables = defaultdict(float)
 
-        for var in self.perturb:
-            ret.perturb[var] += self.perturb[var]
-        for var in other.perturb:
-            ret.perturb[var] -= other.perturb[var]
+        for var in self.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] += self.derivative_wrt_variables[var]
+        for var in other.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] -= other.derivative_wrt_variables[var]
         return ret
 
     def __neg__(self):
         ret = JetMapImpl(value=-self.value)
-        for var in self.perturb:
-            ret.perturb[var] = - self.perturb[var]
+        for var in self.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] = - self.derivative_wrt_variables[var]
         return ret
 
 
@@ -83,10 +83,10 @@ def cosine(num):
         return math.cos(num)
     else:
         ret = JetMapImpl(value=math.cos(num.value))
-        ret.perturb = defaultdict(float)
+        ret.derivative_wrt_variables = defaultdict(float)
 
-        for var in num.perturb:
-            ret.perturb[var] += math.cos(num.perturb[var])
+        for var in num.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] += - math.sin(num.value) * num.derivative_wrt_variables[var]
 
         return ret
 
@@ -96,10 +96,10 @@ def sine(num):
         return math.sin(num)
     else:
         ret = JetMapImpl(value=math.sin(num.value))
-        ret.perturb = defaultdict(float)
+        ret.derivative_wrt_variables = defaultdict(float)
 
-        for var in num.perturb:
-            ret.perturb[var] += math.sin(num.perturb[var])
+        for var in num.derivative_wrt_variables:
+            ret.derivative_wrt_variables[var] += math.cos(num.value) * num.derivative_wrt_variables[var]
 
         return ret
 
@@ -116,6 +116,6 @@ class ResidualBlock:
         jacobian = np.zeros([len(jet_residual), len(self.jets)])
         for ridx in range(len(jet_residual)):
             for vidx in range(len(self.jets)):
-                jacobian[ridx, vidx] = jet_residual[ridx].perturb[self.jets[vidx].var_id]
+                jacobian[ridx, vidx] = jet_residual[ridx].derivative_wrt_variables[self.jets[vidx].var_id]
         residual = np.array([j.value for j in jet_residual])
         return residual, jacobian
