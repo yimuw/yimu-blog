@@ -1,19 +1,19 @@
-from number_tree_flow import *
+from variables_tree_flow import *
 from utils import *
 
 def linear():
-    a = Number(1, 'a')
-    b = Number(2, 'b')
-    c = Number(3, 'c')
-    d = Number(4, 'd')
-    e = Number(5, 'e')
-    f1 = Number(1, 'f1', 'const')
-    f2 = Number(1.1, 'f2', 'const')
-    f3 = Number(1.2, 'f3', 'const')
-    f4 = Number(1.3, 'f4', 'const')
+    a = Variable(1, 'a')
+    b = Variable(2, 'b')
+    c = Variable(3, 'c')
+    d = Variable(4, 'd')
+    e = Variable(5, 'e')
+    f1 = Variable(1, 'f1', 'const')
+    f2 = Variable(1.1, 'f2', 'const')
+    f3 = Variable(1.2, 'f3', 'const')
+    f4 = Variable(1.3, 'f4', 'const')
 
 
-    y = Number(10, 'y')
+    y = Variable(10, 'y')
 
     t = a * a
 
@@ -45,9 +45,9 @@ def linear():
 
 
 def logistic():
-    a = Number(0, 'a')
-    b = Number(0, 'b')
-    f1 = Number(1, 'f1', 'const')
+    a = Variable(0, 'a')
+    b = Variable(0, 'b')
+    f1 = Variable(1, 'f1', 'const')
 
     pred = ntf_sigmoid(a * f1 + b)
     cost = - ntf_log(pred)
@@ -75,9 +75,9 @@ def logistic():
 
 
 def test_chain():
-    theta0 = np.array([Number(value=1., id='t{}'.format(i))
+    theta0 = np.array([Variable(value=1., id='t{}'.format(i))
                         for i in range(2 * 2)]).reshape([2, 2])
-    theta1 = np.array([Number(value=2., id='t{}'.format(i + 10))
+    theta1 = np.array([Variable(value=2., id='t{}'.format(i + 10))
                         for i in range(2 * 2)]).reshape([2, 2])
     f1 = np.array([3,4.])
     temp = theta0 @ f1

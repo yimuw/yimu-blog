@@ -1,7 +1,7 @@
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
 import numpy as np
-import number_tree_flow as ntf
+import variables_tree_flow as vtf
 
 
 class MyLogisticRegression:
@@ -18,10 +18,10 @@ class MyLogisticRegression:
         self.num_classes = max(y) + 1
         self.len_theta = X.shape[1]
 
-        theta = np.array([ntf.Number(value=0., id='t{}'.format(i))
+        theta = np.array([vtf.Variable(value=0., id='t{}'.format(i))
                           for i in range(self.len_theta * self.num_classes)]).reshape([self.len_theta, self.num_classes])
         linear_comb = X @ theta
-        pred = np.vectorize(ntf.ntf_sigmoid)(linear_comb)
+        pred = np.vectorize(vtf.ntf_sigmoid)(linear_comb)
 
         cost = 0
         for pred_row, gt_class in zip(pred, y):
@@ -29,12 +29,12 @@ class MyLogisticRegression:
                 # idx encoding
                 # multiple logistic regression to handle multiclasses.
                 if class_idx == gt_class:
-                    cost += - ntf.ntf_log(pred_class)
+                    cost += - vtf.ntf_log(pred_class)
                 else:
-                    cost += - ntf.ntf_log(1 - pred_class)
+                    cost += - vtf.ntf_log(1 - pred_class)
         cost = cost * (1 / self.data_num)
 
-        core = ntf.NumberFlowCore(cost)
+        core = vtf.NumberFlowCore(cost)
         for i in range(2000):
             core.forward()
             if i % 200 == 0:

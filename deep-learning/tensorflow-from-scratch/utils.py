@@ -1,4 +1,4 @@
-import number_tree_flow
+import variables_tree_flow
 
 
 def traverse_tree(root, level=0):
@@ -6,7 +6,7 @@ def traverse_tree(root, level=0):
 
     def helper(root):
         data = {}
-        if isinstance(root, number_tree_flow.Number):
+        if isinstance(root, variables_tree_flow.Variable):
             data[root.id] = {'val': root.value, 'grad': root.grad,
                              'children': [helper(c) for c in root.children]}
         else:

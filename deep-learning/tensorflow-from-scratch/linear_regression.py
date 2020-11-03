@@ -1,4 +1,4 @@
-import number_tree_flow as ntf
+import variables_tree_flow as vtf
 import numpy as np
 
 
@@ -14,15 +14,15 @@ class LinearRegression:
         self.data_num = len(X)
         self.len_theta = X.shape[1]
 
-        theta = np.array([ntf.Number(value=0, id='t{}'.format(i))
+        theta = np.array([vtf.Variable(value=0, id='t{}'.format(i))
                  for i in range(self.len_theta)])
-        bias = ntf.Number(value=0, id='b')
+        bias = vtf.Variable(value=0, id='b')
 
         pred = X @ theta + bias
         diff = pred - y
         cost = diff.T @ diff * (1 / len(X))
 
-        core = ntf.NumberFlowCore(cost)
+        core = vtf.NumberFlowCore(cost)
         for i in range(15000):
             core.forward()
             if i % 500 == 0:
@@ -42,18 +42,18 @@ class LinearRegression:
         self.data_num = len(X)
         self.len_theta = X.shape[1]
 
-        theta = [ntf.Number(value=0, id='t{}'.format(i))
+        theta = [vtf.Variable(value=0, id='t{}'.format(i))
                  for i in range(self.len_theta)]
-        bias = ntf.Number(value=0, id='b')
+        bias = vtf.Variable(value=0, id='b')
 
-        cost = ntf.Number(value=0, id='cost', ntype='intermediate')
+        cost = vtf.Variable(value=0, id='cost', ntype='intermediate')
         for i in range(self.data_num):
             data = X[i]
-            label = ntf.Number(y[i], id='y{}'.format(i), ntype='const')
-            linear_comb = ntf.Number(
+            label = vtf.Variable(y[i], id='y{}'.format(i), ntype='const')
+            linear_comb = vtf.Variable(
                 value=0, id='diff{}'.format(i), ntype='intermediate')
             for d in range(self.len_theta):
-                f = ntf.Number(
+                f = vtf.Variable(
                     data[d], id='d{}_{}'.format(i, d), ntype='const')
                 linear_comb += f * theta[d]
             linear_comb += bias
@@ -61,10 +61,10 @@ class LinearRegression:
             diff = linear_comb - label
             cost += diff * diff
 
-        scale = ntf.Number(value=1 / self.data_num, id='scale', ntype='const')
+        scale = vtf.Variable(value=1 / self.data_num, id='scale', ntype='const')
         cost *= scale
 
-        core = ntf.NumberFlowCore(cost)
+        core = vtf.NumberFlowCore(cost)
         for i in range(15000):
             core.forward('recur')
             if i % 500 == 0:
@@ -92,13 +92,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-    # 'sklearn' or 'ntf'
-    METHOD = 'ntf'
+    # 'sklearn' or 'vtf'
+    METHOD = 'vtf'
 
     # Create linear regression object
     if METHOD == 'sklearn':
         regr = linear_model.LinearRegression()
-    elif METHOD == 'ntf':
+    elif METHOD == 'vtf':
         regr = LinearRegression()
 
     # Load the diabetes dataset

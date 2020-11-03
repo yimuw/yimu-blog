@@ -2,7 +2,7 @@ from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
 from sklearn import datasets
 import numpy as np
-import number_tree_flow as ntf
+import variables_tree_flow as vtf
 import matplotlib.pyplot as plt
 import random
 
@@ -16,9 +16,9 @@ class NeuralNet:
         len0 = 64
         len1 = 10
         len2 = 10
-        self.theta0 = np.array([ntf.Number(value=random.gauss(0, 0.01), id='t{}'.format(i))
+        self.theta0 = np.array([vtf.Variable(value=random.gauss(0, 0.01), id='t{}'.format(i))
                                 for i in range((len0 + 1) * len1)]).reshape([len1, (len0 + 1)])
-        self.theta1 = np.array([ntf.Number(value=random.gauss(0, 0.01), id='t{}'.format(i))
+        self.theta1 = np.array([vtf.Variable(value=random.gauss(0, 0.01), id='t{}'.format(i))
                                 for i in range((len1 + 1) * len2)]).reshape([len2, (len1 + 1)])
 
         cost = 0
@@ -32,12 +32,12 @@ class NeuralNet:
                 # idx encoding
                 # multiple logistic regression to handle multiclasses.
                 if idx == label:
-                    cost_this += - ntf.ntf_log(pred_val)
+                    cost_this += - vtf.ntf_log(pred_val)
                 else:
-                    cost_this += - ntf.ntf_log(1 - pred_val)
+                    cost_this += - vtf.ntf_log(1 - pred_val)
             cost += cost_this * (1 / num_data)
 
-        core = ntf.NumberFlowCore(cost)
+        core = vtf.NumberFlowCore(cost)
         for i in range(10000):
             core.forward()
             if i % 100 == 0:
@@ -60,10 +60,10 @@ class NeuralNet:
 
         x0b = np.hstack([x0, 1])
         z0 = self.theta0 @ x0b
-        x1 = np.vectorize(ntf.ntf_sigmoid)(z0)
+        x1 = np.vectorize(vtf.ntf_sigmoid)(z0)
         x1b = np.hstack([x1, 1])
         z1 = self.theta1 @ x1b
-        x2 = np.vectorize(ntf.ntf_sigmoid)(z1)
+        x2 = np.vectorize(vtf.ntf_sigmoid)(z1)
 
         return x2
 
@@ -83,9 +83,9 @@ class LogisticRegression:
         len0 = 64
         len1 = 10
         len2 = 10
-        self.theta0 = np.array([ntf.Number(value=random.gauss(0, 0.01), id='t{}'.format(i))
+        self.theta0 = np.array([vtf.Variable(value=random.gauss(0, 0.01), id='t{}'.format(i))
                                 for i in range((len0 + 1) * len1)]).reshape([len1, (len0 + 1)])
-        self.theta1 = np.array([ntf.Number(value=random.gauss(0, 0.01), id='t{}'.format(i))
+        self.theta1 = np.array([vtf.Variable(value=random.gauss(0, 0.01), id='t{}'.format(i))
                                 for i in range((len1 + 1) * len2)]).reshape([len2, (len1 + 1)])
 
         cost = 0
@@ -99,12 +99,12 @@ class LogisticRegression:
                 # idx encoding
                 # multiple logistic regression to handle multiclasses.
                 if idx == label:
-                    cost_this += - ntf.ntf_log(pred_val)
+                    cost_this += - vtf.ntf_log(pred_val)
                 else:
-                    cost_this += - ntf.ntf_log(1 - pred_val)
+                    cost_this += - vtf.ntf_log(1 - pred_val)
             cost += cost_this * (1 / num_data)
 
-        core = ntf.NumberFlowCore(cost)
+        core = vtf.NumberFlowCore(cost)
         for i in range(1000):
             core.forward()
             if i % 100 == 0:
@@ -126,7 +126,7 @@ class LogisticRegression:
 
         x0b = np.hstack([x0, 1])
         z0 = self.theta0 @ x0b
-        x1 = np.vectorize(ntf.ntf_sigmoid)(z0)
+        x1 = np.vectorize(vtf.ntf_sigmoid)(z0)
         return x1
 
     def predict(self, data):

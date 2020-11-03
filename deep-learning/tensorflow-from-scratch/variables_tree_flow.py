@@ -14,20 +14,20 @@ class Node:
         self.children = []
 
 
-class Number(Node):
+class Variable(Node):
 
-    def __init__(self, value=0, id='', ntype='varible'):
+    def __init__(self, value=0, id='', ntype='opt-varible'):
         super().__init__(id)
 
         self.value = value
         self.grad = 0
 
-        # "varible", "const", "intermediate"
+        # "opt-varible", "const", "intermediate"
         self.ntype = ntype
 
     def __add__(self, other):
         if isinstance(other, numbers.Number):
-            other = Number(value=other, ntype='const')
+            other = Variable(value=other, ntype='const')
         plus = Plus(self, other)
         # GLOBAL_VARS.operators.append(plus)
 
@@ -38,23 +38,23 @@ class Number(Node):
 
     def __radd__(self, other):
         if isinstance(other, numbers.Number):
-            other = Number(value=other, ntype='const')
+            other = Variable(value=other, ntype='const')
         return other + self
 
     def __sub__(self, other):
         if isinstance(other, numbers.Number):
-            other = Number(value=other, ntype='const')
+            other = Variable(value=other, ntype='const')
         neg_other = - other
         return self + neg_other
 
     def __rsub__(self, other):
         if isinstance(other, numbers.Number):
-            other = Number(value=other, ntype='const')
+            other = Variable(value=other, ntype='const')
         return other - self
 
     def __mul__(self, other):
         if isinstance(other, numbers.Number):
-            other = Number(value=other, ntype='const')
+            other = Variable(value=other, ntype='const')
         mul = Mul(self, other)
         # GLOBAL_VARS.operators.append(mul)
 
@@ -65,7 +65,7 @@ class Number(Node):
 
     def __rmul__(self, other):
         if isinstance(other, numbers.Number):
-            other = Number(value=other, ntype='const')
+            other = Variable(value=other, ntype='const')
         return other * self
 
     def __neg__(self):
@@ -82,7 +82,7 @@ class Number(Node):
 
 
 def ntf_sigmoid(number):
-    if isinstance(number, Number):
+    if isinstance(number, Variable):
         sigmoid_operator = Sigmoid(number)
         number.parents.append(sigmoid_operator)
         sigmoid_operator.result.children = [sigmoid_operator]
@@ -96,7 +96,7 @@ def ntf_sigmoid(number):
 
 
 def ntf_log(number):
-    if isinstance(number, Number):
+    if isinstance(number, Variable):
         log_operator = Log(number)
         number.parents.append(log_operator)
         log_operator.result.children = [log_operator]
@@ -116,11 +116,11 @@ class Operator(Node):
 
 
 class Plus(Operator):
-    def __init__(self, a: Number, b: Number):
+    def __init__(self, a: Variable, b: Variable):
         super().__init__("({})+({})".format(a.id, b.id))
         self.a = a
         self.b = b
-        self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
 
         self.children = [a, b]
         self.parents = [self.result]
@@ -137,11 +137,11 @@ class Plus(Operator):
 
 
 class Mul(Operator):
-    def __init__(self, a: Number, b: Number):
+    def __init__(self, a: Variable, b: Variable):
         super().__init__("({})*({})".format(a.id, b.id))
         self.a = a
         self.b = b
-        self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
 
         self.children = [a, b]
         self.parents = [self.result]
@@ -158,10 +158,10 @@ class Mul(Operator):
 
 
 class Neg(Operator):
-    def __init__(self, a: Number):
+    def __init__(self, a: Variable):
         super().__init__("-({})".format(a.id))
         self.a = a
-        self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
 
         self.children = [a]
         self.parents = [self.result]
@@ -174,10 +174,10 @@ class Neg(Operator):
 
 
 class Sigmoid(Operator):
-    def __init__(self, a: Number):
+    def __init__(self, a: Variable):
         super().__init__("sigmoid({})".format(a.id))
         self.a = a
-        self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
 
         self.children = [a]
         self.parents = [self.result]
@@ -197,10 +197,10 @@ class Sigmoid(Operator):
 
 
 class Log(Operator):
-    def __init__(self, a: Number):
+    def __init__(self, a: Variable):
         super().__init__("log({})".format(a.id))
         self.a = a
-        self.result = Number(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
 
         self.children = [a]
         self.parents = [self.result]
@@ -230,9 +230,9 @@ class NumberFlowCore:
     def __get_all_nodes(self, node):
         allnodes = [node]
         all_leaf_nodes = [node] if (isinstance(
-            node, Number) and node.ntype == 'varible') else []
+            node, Variable) and node.ntype == 'opt-varible') else []
         all_const_nodes = [node] if (isinstance(
-            node, Number) and node.ntype == 'const') else []
+            node, Variable) and node.ntype == 'const') else []
 
         # using set for ignore duplications
         # e.g. cost = a * a
@@ -296,7 +296,7 @@ class NumberFlowCore:
 
             if isinstance(node, Operator):
                 node.forward()
-            if isinstance(node, Number):
+            if isinstance(node, Variable):
                 states[node] = node.value
 
         evaluate(self.cost_node)
@@ -329,7 +329,7 @@ class NumberFlowCore:
 
     def clear_grad(self):
         def clear_grad_dfs(node):
-            if isinstance(node, Number):
+            if isinstance(node, Variable):
                 node.grad = 0
             for child in node.children:
                 clear_grad_dfs(child)
