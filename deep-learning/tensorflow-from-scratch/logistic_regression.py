@@ -35,13 +35,13 @@ class MyLogisticRegression:
         cost = cost * (1 / self.data_num)
 
         core = vtf.NumberFlowCore(cost)
-        for i in range(2000):
+        for i in range(5000):
             core.forward()
             if i % 200 == 0:
                 print("cost.val:", cost.value, " iter:", i)
             core.clear_grad()
             core.backward()
-            core.gradient_desent(rate=0.001)
+            core.gradient_desent(rate=0.1)
 
         for var in set(core.varible_nodes):
             print(var.id, var.value)

@@ -56,7 +56,6 @@ class Variable(Node):
         if isinstance(other, numbers.Number):
             other = Variable(value=other, ntype='const')
         mul = Mul(self, other)
-        # GLOBAL_VARS.operators.append(mul)
 
         self.parents.append(mul)
         other.parents.append(mul)
@@ -70,7 +69,6 @@ class Variable(Node):
 
     def __neg__(self):
         neg = Neg(self)
-        # GLOBAL_VARS.operators.append(neg)
 
         self.parents.append(neg)
         neg.result.children = [neg]
@@ -104,6 +102,7 @@ def ntf_log(number):
     else:
         return math.log(number)
 
+
 class Operator(Node):
     def __init__(self, id):
         super().__init__(id)
@@ -120,7 +119,8 @@ class Plus(Operator):
         super().__init__("({})+({})".format(a.id, b.id))
         self.a = a
         self.b = b
-        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate",
+                               id="res:{}".format(self.id))
 
         self.children = [a, b]
         self.parents = [self.result]
@@ -141,7 +141,8 @@ class Mul(Operator):
         super().__init__("({})*({})".format(a.id, b.id))
         self.a = a
         self.b = b
-        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate",
+                               id="res:{}".format(self.id))
 
         self.children = [a, b]
         self.parents = [self.result]
@@ -161,7 +162,8 @@ class Neg(Operator):
     def __init__(self, a: Variable):
         super().__init__("-({})".format(a.id))
         self.a = a
-        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate",
+                               id="res:{}".format(self.id))
 
         self.children = [a]
         self.parents = [self.result]
@@ -177,7 +179,8 @@ class Sigmoid(Operator):
     def __init__(self, a: Variable):
         super().__init__("sigmoid({})".format(a.id))
         self.a = a
-        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate",
+                               id="res:{}".format(self.id))
 
         self.children = [a]
         self.parents = [self.result]
@@ -200,7 +203,8 @@ class Log(Operator):
     def __init__(self, a: Variable):
         super().__init__("log({})".format(a.id))
         self.a = a
-        self.result = Variable(ntype="intermediate", id="res:{}".format(self.id))
+        self.result = Variable(ntype="intermediate",
+                               id="res:{}".format(self.id))
 
         self.children = [a]
         self.parents = [self.result]
@@ -214,8 +218,7 @@ class Log(Operator):
 
 
 class NumberFlowCore:
-    def __init__(self, cost_node):
-        self.topologic_order = []
+    def __init__(self, cost_node, method='iter'):
 
         self.cost_node = cost_node
         self.all_nodes, self.varible_nodes, self.const_nodes = self.__get_all_nodes(
@@ -226,6 +229,9 @@ class NumberFlowCore:
         self.varible_nodes = list(set(self.varible_nodes))
         self.const_nodes = list(set(self.const_nodes))
 
+        self.method = method
+        if self.method == 'iter':
+            self.__topological_sort()
 
     def __get_all_nodes(self, node):
         allnodes = [node]
@@ -234,9 +240,7 @@ class NumberFlowCore:
         all_const_nodes = [node] if (isinstance(
             node, Variable) and node.ntype == 'const') else []
 
-        # using set for ignore duplications
-        # e.g. cost = a * a
-        for c in set(node.children):
+        for c in node.children:
             sub_allnodes, sub_all_leaf_nodes, sub_all_const_nodes = self.__get_all_nodes(
                 c)
             allnodes += sub_allnodes
@@ -270,10 +274,13 @@ class NumberFlowCore:
 
         self.topologic_order = topo_order
 
-    def __forward_iterative(self):
-        if not self.topologic_order:
-            self.__topological_sort()
+    def forward(self):
+        if self.method == 'iter':
+            self.__forward_iterative()
+        elif self.method == 'recur':
+            self.__forward_recursive()
 
+    def __forward_iterative(self):
         for node in self.topologic_order:
             if isinstance(node, Operator):
                 node.forward()
@@ -301,31 +308,33 @@ class NumberFlowCore:
 
         evaluate(self.cost_node)
 
-    def forward(self, method='iter'):
-        if method == 'iter':
-            self.__forward_iterative()
-        elif method == 'recur':
-            self.__forward_recursive()
-
-    # to copy tensorflow
-    def __enter__(self):
-        self.__topological_sort()
-
-    def __exit__(self, type, value, tb):
-        if tb:
-            pass
-        self.topologic_order = []
-
     def backward(self):
+        if self.method == 'recur':
+            return self.__backward_recur()
+        elif self.method == 'iter':
+            return self.__backward_iter()
+
+    def __backward_recur(self):
+        visited = set()
+
         def backward_dfs(node):
+            if node in visited: return
+            
             if isinstance(node, Operator):
                 node.backward()
+                visited.add(node)
 
             for child in node.children:
                 backward_dfs(child)
 
-        self.cost_node.grad = 1
+        self.cost_node.grad = 1.
         backward_dfs(self.cost_node)
+
+    def __backward_iter(self):
+        self.cost_node.grad = 1.
+        for node in reversed(self.topologic_order):
+            if isinstance(node, Operator):
+                node.backward()
 
     def clear_grad(self):
         def clear_grad_dfs(node):

@@ -23,55 +23,13 @@ class LinearRegression:
         cost = diff.T @ diff * (1 / len(X))
 
         core = vtf.NumberFlowCore(cost)
-        for i in range(15000):
+        for i in range(20000):
             core.forward()
             if i % 500 == 0:
                 print("cost.val:", cost.value, " iter:", i)
             core.clear_grad()
             core.backward()
-            core.gradient_desent(rate=0.001)
-
-        for var in set(core.varible_nodes):
-            print(var.id, var.value)
-
-        self.coef_ = np.array([t.value for t in theta])
-        self.intercept_ = bias.value
-
-    def __fit_iter_impl(self, X, y):
-        assert len(X) == len(y)
-        self.data_num = len(X)
-        self.len_theta = X.shape[1]
-
-        theta = [vtf.Variable(value=0, id='t{}'.format(i))
-                 for i in range(self.len_theta)]
-        bias = vtf.Variable(value=0, id='b')
-
-        cost = vtf.Variable(value=0, id='cost', ntype='intermediate')
-        for i in range(self.data_num):
-            data = X[i]
-            label = vtf.Variable(y[i], id='y{}'.format(i), ntype='const')
-            linear_comb = vtf.Variable(
-                value=0, id='diff{}'.format(i), ntype='intermediate')
-            for d in range(self.len_theta):
-                f = vtf.Variable(
-                    data[d], id='d{}_{}'.format(i, d), ntype='const')
-                linear_comb += f * theta[d]
-            linear_comb += bias
-
-            diff = linear_comb - label
-            cost += diff * diff
-
-        scale = vtf.Variable(value=1 / self.data_num, id='scale', ntype='const')
-        cost *= scale
-
-        core = vtf.NumberFlowCore(cost)
-        for i in range(15000):
-            core.forward('recur')
-            if i % 500 == 0:
-                print("cost.val:", cost.value, " iter:", i)
-            core.clear_grad()
-            core.backward()
-            core.gradient_desent(rate=0.001)
+            core.gradient_desent(rate=0.1)
 
         for var in set(core.varible_nodes):
             print(var.id, var.value)

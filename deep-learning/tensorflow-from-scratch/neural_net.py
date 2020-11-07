@@ -155,8 +155,8 @@ if __name__ == "__main__":
         ax.set_title('Training: %i' % label)
     plt.show()
 
-    #nn = NeuralNet()
-    #nn.fit_and_test(digits.images, digits.target)
+    # nn = NeuralNet()
+    # nn.fit_and_test(digits.images, digits.target)
 
     lg = LogisticRegression()
     lg.fit_and_test(digits.images, digits.target)

@@ -1,6 +1,7 @@
 from variables_tree_flow import *
 from utils import *
 
+
 def linear():
     a = Variable(1, 'a')
     b = Variable(2, 'b')
@@ -11,7 +12,6 @@ def linear():
     f2 = Variable(1.1, 'f2', 'const')
     f3 = Variable(1.2, 'f3', 'const')
     f4 = Variable(1.3, 'f4', 'const')
-
 
     y = Variable(10, 'y')
 
@@ -40,7 +40,7 @@ def linear():
         print(const.id, const.value)
 
     res = y.value - (f1.value * a.value + f2.value*b.value +
-        f3.value*c.value + f4.value*d.value + e.value)
+                     f3.value*c.value + f4.value*d.value + e.value)
     print("test res:", res * res)
 
 
@@ -76,13 +76,13 @@ def logistic():
 
 def test_chain():
     theta0 = np.array([Variable(value=1., id='t{}'.format(i))
-                        for i in range(2 * 2)]).reshape([2, 2])
+                       for i in range(2 * 2)]).reshape([2, 2])
     theta1 = np.array([Variable(value=2., id='t{}'.format(i + 10))
-                        for i in range(2 * 2)]).reshape([2, 2])
-    f1 = np.array([3,4.])
+                       for i in range(2 * 2)]).reshape([2, 2])
+    f1 = np.array([3, 4.])
     temp = theta0 @ f1
     print(temp.shape)
-    pred =  theta1 @ temp
+    pred = theta1 @ temp
     cost = pred[0] + pred[1]
     core = NumberFlowCore(cost)
 
@@ -105,8 +105,38 @@ def test_chain():
 
     for const in core.const_nodes:
         print(const.id, const.value)
+
+
+def test_graph():
+    x = Variable(value=1., id='x')
+    y = Variable(value=1., id='y')
+
+    c = x + x * y
+    cost = c * c
+    core = NumberFlowCore(cost)
+
+    for i in range(100):
+        if i % 10 == 0:
+            print("cost.val:", cost.value, " iter:", i)
+        core.forward()
+        core.clear_grad()
+        core.backward()
+        core.gradient_desent(rate=0.01)
+
+        if abs(cost.value) < 1e-8:
+            print('break', cost.value)
+            break
+
+    for var in core.varible_nodes:
+        print(var.id, var.value)
+
+    for const in core.const_nodes:
+        print(const.id, const.value)
+
+
 if __name__ == "__main__":
     # linear()
-    #logistic()
+    # logistic()
 
-    test_chain()
+    # test_chain()
+    test_graph()
