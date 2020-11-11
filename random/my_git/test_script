@@ -1,0 +1,15 @@
+rm -r my_git
+rm test
+
+python my_git.py init
+
+touch test
+echo 'line1' >> test
+
+python my_git.py commit test
+
+echo 'line2' >> test
+
+python my_git.py commit test
+
+python my_git.py log
