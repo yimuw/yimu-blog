@@ -8,11 +8,11 @@ python my_git.py init
 touch test
 echo 'line1' >> test
 
-python my_git.py commit test
+python my_git.py commit test c1
 
 echo 'line2' >> test
 
-python my_git.py commit test
+python my_git.py commit test c2
 
 python my_git.py log
 
@@ -21,8 +21,8 @@ python my_git.py checkout 96eebd6d7ef91bc42afb9bd168cb82ab643da052
 echo 'line3' >> test
 echo 'g1' >> test2
 
-python my_git.py commit test
-python my_git.py commit test2
+python my_git.py commit test c3
+python my_git.py commit test2 c4
 
 cat test
 cat test2
@@ -31,3 +31,4 @@ python my_git.py checkout c696f3d4b296c737155637d3a708d2b986ab6f6f
 
 cat test
 cat test2
+
