@@ -1,0 +1,25 @@
+#!/bin/sh -x
+
+rm -r my_git
+rm test1
+
+python my_git.py init
+
+echo 'line1' >> test1
+python my_git.py add test1
+python my_git.py commit c1
+
+echo 'line2' >> test1
+python my_git.py commit c2
+
+echo 'line3' >> test1
+python my_git.py commit c3
+
+python my_git.py checkout c1
+
+python my_git.py merge c3
+
+
+
+
+
