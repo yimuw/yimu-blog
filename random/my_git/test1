@@ -1,0 +1,7 @@
+line1
+<<<<<<< my_git/merge-c3-c2/source/test1
+line3
+||||||| my_git/merge-c3-c2/lca/test1
+=======
+line2
+>>>>>>> my_git/merge-c3-c2/target/test1
