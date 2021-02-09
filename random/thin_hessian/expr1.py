@@ -9,13 +9,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import argparse
+
+METHOD = None
 
 class function1:
     def __init__(self):
-        self.a = 0.01
+        self.a = 0.1
         self.b = 2
         self.c = 10
 
+    def print_gt(self):
         print('x*-gt:', -self.b / (2*self.a))
 
 
@@ -66,6 +70,10 @@ class Solver:
 
         self.iteration = 0
 
+    def converge(self):
+        d = self.func.df(self.x)
+        return np.linalg.norm(d) < 1e-8
+
     def iter(self):
         x0 = self.x
 
@@ -103,9 +111,7 @@ class Solver:
         self.b = update_weight * self.b + (1- update_weight) * res_b
 
 
-        # self.x = x1
-
-        method = 'c'
+        method = METHOD
         
         if method == 'c': # center
             x_star_est = - self.b / (2 * self.a)
@@ -148,19 +154,31 @@ def test1():
 
 def test2():
     func = function1()
-    s = Solver(func, 1000)
-    for i in range(100):
+    s = Solver(func, 100)
+    for i in range(2000):
         print('i:', i)
         s.iter()
+        if s.converge():
+            print('converge!')
+            break
+    func.print_gt()
 
 def test3():
     func = function2()
     s = Solver(func, 10)
-    for i in range(1000):
+    for i in range(2000):
         print('i:', i)
         s.iter()
+        if s.converge():
+            print('converge!')
+            break
+
 if __name__ == "__main__":
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('opt_method', type=str, help='c: quad center; gd: gradient descent; s: scaled gd')
+    args = parser.parse_args()
+
+    METHOD = args.opt_method
     # test1()
     # test2()
     test3()
