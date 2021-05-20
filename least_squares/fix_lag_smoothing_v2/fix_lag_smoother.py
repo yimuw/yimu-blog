@@ -5,13 +5,15 @@ import fix_lag_types as t
 import copy
 from collections import deque
 
-# lag = 1.
-# Similar to Kalman filter without noise
+UNBIAS_ESTIMATION = True
+MARGINALIZATION_METHOD = 'gaussian'
+
+
 class FixLagSmoother:
     def __init__(self, prior_measurement, gps_measurement):
         # using deque (linked list) for head & tail lookup
         self.state_opt_vars = deque([t.State(prior_measurement.copy())])
-        # mantain a looking between state idx and state in the deque
+        # mantain a lookup between state idx and state in the deque
         self.state_idx_offset = 0
 
         # make sure the fixed-lagged graph invariant hold at the beginning
@@ -21,14 +23,13 @@ class FixLagSmoother:
         # For prior cost, Jacobian is I. Direct assign for simplicity
         # Assuming Identity weight matrix.
         self.prior_hessian = np.identity(4)
-        self.prior_mean = np.zeros((4,1))
+        self.prior_mean = np.zeros((4, 1))
 
         # config
-        self.window_size = 3
+        self.window_size = 5
 
-        # result
+        # result for easy query
         self.result = []
-
 
     def get_all_states(self):
         return np.vstack(self.result)
@@ -40,7 +41,8 @@ class FixLagSmoother:
         # extent the graph
         self.odometry_measurements.append(odometry_measurement)
         self.gps_measurements.append(gps_measurement)
-        self.state_opt_vars.append(t.State(self.state_opt_vars[-1].variables.copy()))
+        self.state_opt_vars.append(
+            t.State(self.state_opt_vars[-1].variables.copy()))
 
     def construct_linear_system(self):
         """
@@ -62,20 +64,24 @@ class FixLagSmoother:
 
         # Odometry costs
         for odometry_measurement in self.odometry_measurements:
-            state1_idx = self.state_index_lookup(odometry_measurement.state1_index)
+            state1_idx = self.state_index_lookup(
+                odometry_measurement.state1_index)
             state1_var_idx = size_state * state1_idx
             state1 = self.state_opt_vars[state1_idx]
 
-            state2_idx = self.state_index_lookup(odometry_measurement.state2_index)
+            state2_idx = self.state_index_lookup(
+                odometry_measurement.state2_index)
             state2_var_idx = size_state * state2_idx
             state2 = self.state_opt_vars[state2_idx]
 
             odometry_cost = t.OdometryCost(state1, state2)
 
-            cur_jacobi = np.zeros([odometry_cost.residual_size(), size_opt_vars])
-            # print(cur_jacobi)
-            cur_jacobi[:, state1_var_idx:state1_var_idx + odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state1()
-            cur_jacobi[:, state2_var_idx:state2_var_idx + odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state2()
+            cur_jacobi = np.zeros(
+                [odometry_cost.residual_size(), size_opt_vars])
+            cur_jacobi[:, state1_var_idx:state1_var_idx +
+                       odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state1()
+            cur_jacobi[:, state2_var_idx:state2_var_idx +
+                       odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state2()
 
             cur_residual = odometry_cost.residual()
 
@@ -92,7 +98,8 @@ class FixLagSmoother:
             gps_cost = t.GPSCost(state, gps_measurement.gps)
 
             cur_jacobi = np.zeros([gps_cost.residual_size(), size_opt_vars])
-            cur_jacobi[:, state_var_idx:state_var_idx + gps_cost.variable_size()] = gps_cost.jacobi_wrt_state()
+            cur_jacobi[:, state_var_idx:state_var_idx +
+                       gps_cost.variable_size()] = gps_cost.jacobi_wrt_state()
 
             cur_residual = gps_cost.residual()
 
@@ -104,14 +111,25 @@ class FixLagSmoother:
 
     def solve_and_update(self, lhs, rhs):
         # one step for linear system
-        # Using Nonlinear Gaussian-Newton formulation, the result is dx 
+        # Using Nonlinear Gaussian-Newton formulation, the result is dx
         num_states = len(self.state_opt_vars)
         dx = np.linalg.solve(lhs, - rhs)
         dx = dx.reshape(num_states, t.State.size())
 
-        # iterator for a deque
-        for i, s in enumerate(self.state_opt_vars):
-            s.variables += dx[i]
+        # No practical for nonlinear case
+        if UNBIAS_ESTIMATION:
+            for i in range(len(self.state_opt_vars)):
+                state_idx = self.state_idx_offset + i
+                if state_idx == len(self.result): self.result.append(None)
+                self.result[state_idx] = self.state_opt_vars[i].variables + dx[i]
+        else:
+            # iterator for a deque
+            for i, s in enumerate(self.state_opt_vars):
+                s.variables += dx[i]
+
+                state_idx = self.state_idx_offset + i
+                if state_idx == len(self.result): self.result.append(None)
+                self.result[state_idx] = self.state_opt_vars[i].variables
 
     @profiler.time_it
     def optimize_for_new_measurement(self, distance_measurement, gps_measurement):
@@ -120,12 +138,14 @@ class FixLagSmoother:
         lhs, rhs = self.construct_linear_system()
 
         self.solve_and_update(lhs, rhs)
-        
-        if len(self.state_opt_vars) > self.window_size:
-            self.marginalization_schur_impl()
 
-        # save the result for the currrent state 
-        self.result.append(self.state_opt_vars[-1].variables.copy())
+        if len(self.state_opt_vars) > self.window_size:
+            if MARGINALIZATION_METHOD == 'schur':
+                self.marginalization_schur_impl()
+            elif MARGINALIZATION_METHOD == 'gaussian':
+                self.marginalization_gaussian_impl()
+            else:
+                assert False, "unknow marginalization method"
 
     def construct_marginalization_equation(self):
         """
@@ -150,18 +170,22 @@ class FixLagSmoother:
         rhs[:size_state] += self.prior_mean
 
         # Odometry cost
-        state1_idx = self.state_index_lookup(odo_to_be_marginalized.state1_index)
+        state1_idx = self.state_index_lookup(
+            odo_to_be_marginalized.state1_index)
         state1_var_idx = size_state * state1_idx
         state1 = self.state_opt_vars[state1_idx]
 
-        state2_idx = self.state_index_lookup(odo_to_be_marginalized.state2_index)
+        state2_idx = self.state_index_lookup(
+            odo_to_be_marginalized.state2_index)
         state2_var_idx = size_state * state2_idx
         state2 = self.state_opt_vars[state2_idx]
 
         odometry_cost = t.OdometryCost(state1, state2)
         cur_jacobi = np.zeros([odometry_cost.residual_size(), size_opt_vars])
-        cur_jacobi[:, state1_var_idx:state1_var_idx + odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state1()
-        cur_jacobi[:, state2_var_idx:state2_var_idx + odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state2()
+        cur_jacobi[:, state1_var_idx:state1_var_idx +
+                   odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state1()
+        cur_jacobi[:, state2_var_idx:state2_var_idx +
+                   odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state2()
 
         cur_residual = odometry_cost.residual()
 
@@ -177,7 +201,8 @@ class FixLagSmoother:
         gps_cost = t.GPSCost(state, gps_to_be_marginalized.gps)
 
         cur_jacobi = np.zeros([gps_cost.residual_size(), size_opt_vars])
-        cur_jacobi[:, state_var_idx:state_var_idx + gps_cost.variable_size()] = gps_cost.jacobi_wrt_state()
+        cur_jacobi[:, state_var_idx:state_var_idx +
+                   gps_cost.variable_size()] = gps_cost.jacobi_wrt_state()
 
         cur_residual = gps_cost.residual()
 
@@ -187,12 +212,8 @@ class FixLagSmoother:
 
         return lhs, rhs
 
-
     @profiler.time_it
     def marginalization_schur_impl(self):
-        """
-            Force schur ordering.
-        """
         lhs, rhs = self.construct_marginalization_equation()
 
         size_state = t.State.size()
@@ -214,3 +235,22 @@ class FixLagSmoother:
         self.state_opt_vars.popleft()
         self.state_idx_offset += 1
 
+    @profiler.time_it
+    def marginalization_gaussian_impl(self):
+        lhs, rhs = self.construct_marginalization_equation()
+
+        size_state = t.State.size()
+
+        lhs_LU = linalg.lu_factor(lhs)
+        covariance = linalg.lu_solve(lhs_LU, np.identity(size_state * 2))
+        mean_covariance_form = covariance @ rhs
+
+        self.prior_hessian = np.linalg.inv(
+            covariance[size_state:, size_state:])
+        # This is tricky
+        # get it by equating ||Ax + b||^2 = ||x + mu ||^2_W
+        self.prior_mean = self.prior_hessian @ mean_covariance_form[size_state:]
+
+        # pop tail
+        self.state_opt_vars.popleft()
+        self.state_idx_offset += 1

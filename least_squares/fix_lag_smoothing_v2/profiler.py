@@ -4,6 +4,7 @@ from collections import defaultdict
 
 time_map = defaultdict(list)
 
+
 def time_it(func):
     def inner(*args, **kwargs):
         time_start = time.time()
@@ -19,4 +20,5 @@ def time_it(func):
 
 def print_time_map():
     for k, v in time_map.items():
-        print('{}: mean time: {},  # called: {}, max: {}'.format(k, np.mean(v), len(v), max(v)))
+        print('{}: mean time: {},  # called: {}, max: {}'.format(
+            k, np.mean(v), len(v), max(v)))

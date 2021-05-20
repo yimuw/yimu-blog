@@ -19,12 +19,12 @@ class BatchOptimization:
         jacobi, r = self.construct_linear_system()
 
         # one step for linear system
-        # Using Nonlinear Gaussian-Newton formulation, the result is dx 
+        # Using Nonlinear Gaussian-Newton formulation, the result is dx
         dx = np.linalg.solve(jacobi.T @ jacobi, - jacobi.T @ r)
         dx = dx.reshape(self.num_states, t.State.size())
         for i, s in enumerate(self.states):
             s.variables += dx[i]
-        
+
         return self.states
 
     def construct_linear_system(self):
@@ -34,9 +34,11 @@ class BatchOptimization:
         # Prior cost
         state_idx = 0
         state_var_idx = 0
-        prior_cost = t.PriorCost(self.states[state_idx], self.prior_measurement)
+        prior_cost = t.PriorCost(
+            self.states[state_idx], self.prior_measurement)
         jacobi = np.zeros([prior_cost.residual_size(), size_variables])
-        jacobi[:, state_var_idx:state_var_idx + prior_cost.variable_size()] = prior_cost.jacobi_wrt_state()
+        jacobi[:, state_var_idx:state_var_idx +
+               prior_cost.variable_size()] = prior_cost.jacobi_wrt_state()
         residual = prior_cost.residual()
 
         # Odometry costs
@@ -51,9 +53,12 @@ class BatchOptimization:
 
             odometry_cost = t.OdometryCost(state1, state2)
 
-            cur_jacobi = np.zeros([odometry_cost.residual_size(), size_variables])
-            cur_jacobi[:, state1_var_idx:state1_var_idx + odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state1()
-            cur_jacobi[:, state2_var_idx:state2_var_idx + odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state2()
+            cur_jacobi = np.zeros(
+                [odometry_cost.residual_size(), size_variables])
+            cur_jacobi[:, state1_var_idx:state1_var_idx +
+                       odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state1()
+            cur_jacobi[:, state2_var_idx:state2_var_idx +
+                       odometry_cost.variable_size()] = odometry_cost.jacobi_wrt_state2()
 
             cur_residual = odometry_cost.residual()
 
@@ -69,7 +74,8 @@ class BatchOptimization:
             gps_cost = t.GPSCost(state, gps_measurement.gps)
 
             cur_jacobi = np.zeros([gps_cost.residual_size(), size_variables])
-            cur_jacobi[:, state_var_idx:state_var_idx + gps_cost.variable_size()] = gps_cost.jacobi_wrt_state()
+            cur_jacobi[:, state_var_idx:state_var_idx +
+                       gps_cost.variable_size()] = gps_cost.jacobi_wrt_state()
 
             cur_residual = gps_cost.residual()
 

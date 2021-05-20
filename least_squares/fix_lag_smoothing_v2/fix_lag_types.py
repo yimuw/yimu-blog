@@ -23,10 +23,12 @@ class State:
     def size():
         return 4
 
+
 class OdometryMeasurement:
     """
         Help the mapping between a state and the state's index in the Hessian of the optimization problem.
     """
+
     def __init__(self, state1_index, state2_index):
         # Dangeours
         self.state1_index = state1_index
@@ -55,8 +57,8 @@ class OdometryCost:
 
     def jacobi_wrt_state1(self):
         j = - np.identity(4)
-        j[0,2] = -1.
-        j[1,3] = -1.
+        j[0, 2] = -1.
+        j[1, 3] = -1.
         return j
 
     def jacobi_wrt_state2(self):
@@ -86,7 +88,7 @@ class GPSCost:
         self.gps = gps.copy()
 
     def residual(self):
-        x,y,_,_ = self.state.unpack_state()
+        x, y, _, _ = self.state.unpack_state()
         gx, gy = self.gps
         return np.array([
             [x - gx],
@@ -94,7 +96,7 @@ class GPSCost:
         ])
 
     def jacobi_wrt_state(self):
-        j = np.zeros([2,4])
+        j = np.zeros([2, 4])
         j[0:2, 0:2] = np.identity(2)
         return j
 
@@ -106,13 +108,14 @@ class GPSCost:
     def variable_size():
         return 4
 
+
 class PriorCost:
     def __init__(self, state, prior):
         self.state = state
         self.prior = prior.copy()
 
     def residual(self):
-        return (self.state.variables - self.prior).reshape([4,1])
+        return (self.state.variables - self.prior).reshape([4, 1])
 
     def jacobi_wrt_state(self):
         return np.identity(4)
