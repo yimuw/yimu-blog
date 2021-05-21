@@ -31,10 +31,10 @@ def simulate_data(num_states):
 
 
 def fix_lag_smoothing_demo():
-    NUM_STATES = 50
+    NUM_STATES = 30
     states_gt, state_init_guess, odometry_measurements, gps_measurements, prior_measurement = simulate_data(
         NUM_STATES)
-    
+
     if False:
         print('states_gt :\n', states_gt)
         print('odometry_measurements:', odometry_measurements)
@@ -43,25 +43,32 @@ def fix_lag_smoothing_demo():
 
     batch_optimization = batch_optimizer.BatchOptimization(
         state_init_guess, odometry_measurements, gps_measurements, prior_measurement)
-    batch_result = batch_optimization.optimize()
+    batch_result, batch_cov = batch_optimization.optimize()
 
+    # format data
     batch_result = np.vstack([b.variables for b in batch_result])
+    batch_cov_diag = np.diag(batch_cov).reshape(-1, 4)
     states_gt = np.vstack(states_gt)
 
     print('states_gt :\n', states_gt)
-    print('batch :\n', batch_result)
-
+    print('batch resutl:\n', batch_result)
+    print('batch cov diag:\n', batch_cov_diag)
     fix_lag = fix_lag_smoother.FixLagSmoother(
         prior_measurement, gps_measurements[0])
 
-    # observation 1 by 1
+    # observation 1 by 1. e.g. real-time simulation
     for i in range(len(odometry_measurements)):
         fix_lag.optimize_for_new_measurement(
             odometry_measurements[i], gps_measurements[i+1])
 
     fixed_lag_result = fix_lag.get_all_states()
+    fixed_lag_cov_diag = fix_lag.get_diag_cov()
     print('fixed lag :\n', fixed_lag_result)
-    print('fixed lag - batch:', fixed_lag_result - batch_result)
+    print('fixed lag cov\n:', fixed_lag_cov_diag)
+
+    # show diff.
+    print('cov diff:\n', fixed_lag_cov_diag - batch_cov_diag)
+    print('fixed lag - batch\n:', fixed_lag_result - batch_result)
 
     profiler.print_time_map()
 
