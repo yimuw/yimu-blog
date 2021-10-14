@@ -1,0 +1,13 @@
+allow venv active:
+     Set-ExecutionPolicy Unrestricted -Scope Process
+
+set envs
+     $env:FLASK_ENV = "development"
+      $env:FLASK_APP = "server"
+
+run in local
+    flask run
+
+run in public:
+    flask run --host:0.0.0.0
+
