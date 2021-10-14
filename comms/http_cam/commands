@@ -5,9 +5,14 @@ set envs
      $env:FLASK_ENV = "development"
       $env:FLASK_APP = "server"
 
+create db file
+    in python,
+    from server import db
+    db.create_all()
+
 run in local
     flask run
 
 run in public:
-    flask run --host:0.0.0.0
+    flask run --host=0.0.0.0
 

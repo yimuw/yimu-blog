@@ -7,11 +7,11 @@ import time
 import os
 from flask_sqlalchemy import SQLAlchemy
 
-
 # create and configure the app
 app = Flask(__name__, instance_relative_config=True)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////data.db'
 db = SQLAlchemy(app)
+
 
 class Shot(db.Model):
     __tablename__ = 'shots'
@@ -21,7 +21,9 @@ class Shot(db.Model):
     im_path = db.Column(db.String(200))
 
     def __repr__(self):
-        return 'id:{} created_date:{} request_id:{} im_path:{}'.format(self.id, self.created_date, self.request_ip, self.im_path)
+        return 'id:{} created_date:{} request_id:{} im_path:{}'.format(self.id, self.created_date, self.request_ip,
+                                                                       self.im_path)
+
 
 cam = cv2.VideoCapture(0)
 image_save_dir = 'captures'
@@ -34,12 +36,14 @@ try:
 except OSError:
     pass
 
+
 # a simple page that says hello
 @app.route('/hello')
 def hello():
     return 'Hello, World!'
 
-@app.route('/tp')
+
+@app.route('/tp', methods=['POST'])
 def take_picture():
     return_value, image = cam.read()
     t = time.time()
@@ -47,17 +51,18 @@ def take_picture():
     im_save_path = os.path.join(image_save_dir, 'im_{:.3f}.png'.format(t))
     cv2.imwrite(im_save_path, image)
     request_ip = request.remote_addr
+    print('request from: ', request.form)
 
     shot_record = Shot(request_ip=request_ip, im_path=im_save_path)
     db.session.add(shot_record)
     db.session.commit()
 
-    return { 'cv_return': return_value,
-             'request_ip:' : request_ip,
-             'timestamp:': time.time(),
-             'im_shape:' : image.shape}
+    return {'cv_return': return_value,
+            'request_ip:': request_ip,
+            'timestamp:': time.time(),
+            'im_shape:': image.shape}
+
 
 @app.route('/shots')
 def get_shots():
-    return {'shots' : [str(s) for s in Shot.query.all()]}
-
+    return {'shots': [str(s) for s in Shot.query.all()]}
