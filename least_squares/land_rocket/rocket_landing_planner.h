@@ -44,6 +44,17 @@ public:
             auto ddp_solver = DifferentialDynamicProgramming();
             ddp_solver.solve(problem_);
         }
+        else if(config_.solve_type == "naive")
+        {
+            auto naive_solver = SparseSolver();
+            naive_solver.solver_rocket_landing_least_squares(config_, problem_);
+        }
+        else if(config_.solve_type == "gradient_desent")
+        {
+            auto naive_solver = GradientDesentSolver();
+            // Doing GB
+            naive_solver.solver_rocket_landing_least_squares(config_, problem_);
+        }
         else
         {
             assert(false && "unknow solver type");

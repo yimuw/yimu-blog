@@ -13,9 +13,9 @@
 class DenseSolverUpdateInPlace : public DenseSolver
 {
 public:
-    virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) override
+    virtual VectorXd solver_rocket_landing_least_squares_single_step(const RocketLandingResiduals &residual) override
     {
-        ScopeProfiler p("DenseSolverUpdateInPlace:solver_rocket_landing_least_squares");
+        ScopeProfiler p("DenseSolverUpdateInPlace:solver_rocket_landing_least_squares_single_step");
 
         NormalEquation normal_equ(residual.total_variable_size());
         residual_function_to_normal_equation(residual, normal_equ);

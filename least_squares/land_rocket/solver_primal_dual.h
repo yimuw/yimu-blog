@@ -89,7 +89,8 @@ public:
             std::cout << "warning: not converged" << std::endl;
         }
 
-        print_variables(problem.trajectory, true);
+        if(verbose_)
+            print_variables(problem.trajectory, true);
     }
 
 protected:
@@ -318,10 +319,11 @@ protected:
         dual_variables += final_line_search_step * dual_step;
         problem.trajectory = update_primal_variables(primal_step, final_line_search_step, problem.trajectory);
 
-        // PRINT_NAME_VAR(dual_feasible_status);
-        // PRINT_NAME_VAR(primal_feasible_status);
-        PRINT_NAME_VAR(search_success);
-        PRINT_NAME_VAR(final_line_search_step);
+        if (verbose_)
+        {
+            PRINT_NAME_VAR(search_success);
+            PRINT_NAME_VAR(final_line_search_step);
+        }
 
         return true;
     }
@@ -345,8 +347,7 @@ protected:
     {
         const double primal_dual_cost = float(residual.transpose() * residual) / num_states_;
         const double surrogate_duality_gap = compute_surrogate_duality_gap(constrains, dual_variables);
-        // PRINT_NAME_VAR(surrogate_duality_gap);
-        // PRINT_NAME_VAR(primal_dual_cost);
+
         if (primal_dual_cost > 1e-4) {
             return false;
         }

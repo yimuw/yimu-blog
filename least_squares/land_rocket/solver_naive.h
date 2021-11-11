@@ -33,7 +33,7 @@ public:
         MatrixXd weight;
     };
 
-    virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual) = 0;
+    virtual VectorXd solver_rocket_landing_least_squares_single_step(const RocketLandingResiduals &residual) = 0;
 
 protected:
     virtual VectorXd solve_normal_equation(NormalEquation &quadratic) = 0;
@@ -44,14 +44,38 @@ protected:
 class DenseSolver : public RocketLandingSolver
 {
 public:
-    virtual VectorXd solver_rocket_landing_least_squares(const RocketLandingResiduals &residual)
+    virtual VectorXd solver_rocket_landing_least_squares_single_step(const RocketLandingResiduals &residual)
     {
-        ScopeProfiler p("DenseSolver:solver_rocket_landing_least_squares");
+        ScopeProfiler p("DenseSolver:solver_rocket_landing_least_squares_single_step");
         const LinearizedResidual linearized_residuals = linearized_residual_function(residual);
         NormalEquation normal_equ = linear_function_to_normal_equation(linearized_residuals);
         apply_regularization_to_hessian(residual, normal_equ);
         return solve_normal_equation(normal_equ);
     }
+
+
+    // Doing GD
+    virtual void solver_rocket_landing_least_squares(Config& config,
+                                                     RocketLandingProblem& problem)
+    {
+        constexpr int MAX_ITERATIONS = 50;
+        for (int iter = 0; iter < MAX_ITERATIONS; ++iter) {
+            ScopeProfiler p("solve_iter");
+
+            problem.update_problem();
+            const VectorXd step = solver_rocket_landing_least_squares_single_step(problem.residuals);
+            problem.trajectory = update_primal_variables(step, 0.5, problem.trajectory);
+
+            std::cout << "step: " << step.norm() << std::endl;
+            
+            if (step.norm() < 1e-4) 
+            {
+                std::cout << "stop at iter:" << iter << std::endl;
+                break;
+            }
+        }
+    }
+
 
 protected:
     void add_residual(const Residual &residual,

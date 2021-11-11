@@ -25,6 +25,8 @@ int main(int argc, char *argv[])
         if (solver_type == "s") rocket_landing.config_.solve_type = "sparse";
         else if (solver_type == "t") rocket_landing.config_.solve_type = "structural";
         else if (solver_type == "d") rocket_landing.config_.solve_type = "ddp_unconstrained";
+        else if (solver_type == "n") rocket_landing.config_.solve_type = "naive";
+        else if (solver_type == "g") rocket_landing.config_.solve_type = "gradient_desent";
     }
     std::cout << "solver type :" << rocket_landing.config_.solve_type << std::endl;
 

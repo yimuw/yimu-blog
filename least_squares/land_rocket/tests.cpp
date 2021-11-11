@@ -65,7 +65,7 @@ template<typename SOLVER_TYPE>
 VectorXd solve_by(const RocketLandingResiduals &r)
 {
     SOLVER_TYPE solver;
-    VectorXd delta = solver.solver_rocket_landing_least_squares(r);
+    VectorXd delta = solver.solver_rocket_landing_least_squares_single_step(r);
     return delta;
 }
 
